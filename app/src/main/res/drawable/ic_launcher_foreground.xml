@@ -1,0 +1,9 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Torta dividida: gasto compartido -->
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M54,32 A22,22 0 1,1 32,54 L54,54 Z" />
+    <path android:fillColor="#FFFFD2A8"
+        android:pathData="M50,28 L50,50 L28,50 A22,22 0 0,1 50,28 Z" />
+</vector>

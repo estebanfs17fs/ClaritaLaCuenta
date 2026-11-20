@@ -1,0 +1,95 @@
+package uy.gastos.ui
+
+import androidx.compose.ui.graphics.Color
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
+import kotlin.math.abs
+
+val ES: Locale = Locale.forLanguageTag("es-UY")
+
+fun dinero(centavos: Long, moneda: String): String {
+    val simbolo = if (moneda == "USD") "U\$S" else "$"
+    val entero = abs(centavos) / 100
+    val dec = abs(centavos) % 100
+    val miles = entero.toString().reversed().chunked(3).joinToString(".").reversed()
+    return "${if (centavos < 0) "-" else ""}$simbolo $miles,${dec.toString().padStart(2, '0')}"
+}
+
+/** Monto corto para ejes: "$ 12,5 mil". */
+fun dineroCorto(centavos: Long, moneda: String): String {
+    val simbolo = if (moneda == "USD") "U\$S" else "$"
+    val v = centavos / 100.0
+    return when {
+        v >= 1_000_000 -> "$simbolo ${"%.1f".format(ES, v / 1_000_000)} M"
+        v >= 1_000 -> "$simbolo ${"%.1f".format(ES, v / 1_000)} mil"
+        else -> "$simbolo ${"%.0f".format(ES, v)}"
+    }
+}
+
+/** Convierte "1.234,56" o "1234.56" a centavos. */
+fun centavosDesdeTexto(texto: String): Long? {
+    var t = texto.trim().replace(" ", "")
+    if (t.isEmpty()) return null
+    if (',' in t) t = t.replace(".", "").replace(',', '.')
+    val v = t.toDoubleOrNull() ?: return null
+    return Math.round(v * 100)
+}
+
+enum class Periodo(val nombre: String) { SEMANA("Semana"), MES("Mes"), TRIMESTRE("Trimestre"), ANIO("Año") }
+
+data class Rango(val inicio: LocalDate, val fin: LocalDate) {
+    val desdeIso get() = inicio.toString()
+    val hastaIso get() = fin.toString()
+}
+
+fun rango(p: Periodo, ancla: LocalDate): Rango {
+    val inicio = when (p) {
+        Periodo.SEMANA -> ancla.with(DayOfWeek.MONDAY)
+        Periodo.MES -> ancla.withDayOfMonth(1)
+        Periodo.TRIMESTRE -> ancla.withMonth(((ancla.monthValue - 1) / 3) * 3 + 1).withDayOfMonth(1)
+        Periodo.ANIO -> ancla.withDayOfYear(1)
+    }
+    return Rango(inicio, mover(p, inicio, 1))
+}
+
+fun mover(p: Periodo, fecha: LocalDate, n: Long): LocalDate = when (p) {
+    Periodo.SEMANA -> fecha.plusWeeks(n)
+    Periodo.MES -> fecha.plusMonths(n)
+    Periodo.TRIMESTRE -> fecha.plusMonths(3 * n)
+    Periodo.ANIO -> fecha.plusYears(n)
+}
+
+fun etiqueta(p: Periodo, r: Rango): String = when (p) {
+    Periodo.SEMANA -> "Semana del ${r.inicio.format(DateTimeFormatter.ofPattern("d/M"))} al " +
+        r.fin.minusDays(1).format(DateTimeFormatter.ofPattern("d/M/yyyy"))
+    Periodo.MES -> r.inicio.month.getDisplayName(TextStyle.FULL, ES).replaceFirstChar { it.uppercase() } +
+        " ${r.inicio.year}"
+    Periodo.TRIMESTRE -> "Trimestre ${(r.inicio.monthValue - 1) / 3 + 1} de ${r.inicio.year}"
+    Periodo.ANIO -> r.inicio.year.toString()
+}
+
+fun etiquetaCorta(p: Periodo, r: Rango): String = when (p) {
+    Periodo.SEMANA -> r.inicio.format(DateTimeFormatter.ofPattern("d/M"))
+    Periodo.MES -> r.inicio.month.getDisplayName(TextStyle.SHORT, ES).trimEnd('.')
+    Periodo.TRIMESTRE -> "T${(r.inicio.monthValue - 1) / 3 + 1}"
+    Periodo.ANIO -> r.inicio.year.toString()
+}
+
+fun fechaLegible(iso: String): String = iso.replace('T', ' ').let {
+    // "2026-11-19 21:46" -> "19/11 21:46"
+    if (it.length >= 16) "${it.substring(8, 10)}/${it.substring(5, 7)} ${it.substring(11, 16)}" else it
+}
+
+val ColorPersonal = Color(0xFF7A869A)
+private val PALETA = listOf(
+    Color(0xFFEC7000), Color(0xFF1B8A8F), Color(0xFF6E56CF), Color(0xFF2F9E44),
+    Color(0xFFD6336C), Color(0xFF1971C2), Color(0xFFB08800), Color(0xFF8D4E2A),
+)
+
+/** Color estable por cuenta: null = personal. */
+fun colorCuenta(cuentaId: Long?, idsOrdenados: List<Long>): Color =
+    if (cuentaId == null) ColorPersonal
+    else PALETA[(idsOrdenados.indexOf(cuentaId).coerceAtLeast(0)) % PALETA.size]
