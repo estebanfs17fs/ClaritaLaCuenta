@@ -12,8 +12,8 @@ data class Consumo(
 
 object ItauParser {
     private val PATRON = Regex(
-        "consumo de su tarjeta\\s+(?<marca>[\\p{L}\\d ]+?)\\s+terminada en\\s+(?<tarjeta>\\d{4})" +
-            "\\s*\\.?\\s*Realizado en\\s+(?<comercio>.+?)\\s+Monto:\\s*(?<monto>[\\d.,]+)\\s*" +
+        "consumo de su tarjeta\\s+(?<marca>[\\p{L}\\d ]+?)\\s+terminada en\\s*:?\\s*(?<tarjeta>\\d{4})" +
+            "\\s*\\.?\\s*Realizado en\\s*:?\\s*(?<comercio>.+?)\\s*Monto\\s*:?\\s*(?<monto>[\\d.,]+)\\s*" +
             "(?<moneda>Pesos|D[oó]lares|U\\\$S|USD|UYU|\\$)",
         setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
     )
@@ -37,7 +37,39 @@ object ItauParser {
         t = t.replace(Regex("<[^>]+>"), " ")
         for ((k, v) in ENTIDADES) t = t.replace(k, v)
         t = t.replace(Regex("&#(\\d+);")) { m -> m.groupValues[1].toIntOrNull()?.toChar()?.toString() ?: " " }
+        t = t.replace(Regex("&#[xX]([0-9a-fA-F]+);")) { m -> m.groupValues[1].toIntOrNull(16)?.toChar()?.toString() ?: " " }
         return t.replace(Regex("[ \\t\\r\\u000C\\u00A0]+"), " ")
+    }
+
+    private fun esHex(c: Char) = c in '0'..'9' || c in 'a'..'f' || c in 'A'..'F'
+
+    /** Decodifica quoted-printable que quedó sin decodificar (pasa con algunos reenvíos). */
+    fun decodificarQuotedPrintable(t: String): String {
+        if (!Regex("=\\r?\\n|=3D|=20|=C3=").containsMatchIn(t)) return t
+        val sinCortes = t.replace(Regex("=\\r?\\n"), "")
+        val bytes = java.io.ByteArrayOutputStream()
+        var i = 0
+        while (i < sinCortes.length) {
+            val c = sinCortes[i]
+            if (c == '=' && i + 2 < sinCortes.length && esHex(sinCortes[i + 1]) && esHex(sinCortes[i + 2])) {
+                bytes.write(sinCortes.substring(i + 1, i + 3).toInt(16)); i += 3
+            } else {
+                bytes.write(c.toString().toByteArray(Charsets.UTF_8)); i++
+            }
+        }
+        return bytes.toString("UTF-8")
+    }
+
+    /**
+     * Deja el texto listo para buscar el aviso, sea el correo original o un reenvío:
+     * quita HTML, marcas de cita ("> "), negritas de texto plano (*), caracteres invisibles y saltos de línea.
+     */
+    fun normalizar(contenido: String): String {
+        var t = htmlATexto(decodificarQuotedPrintable(contenido))
+        t = t.replace(Regex("(?m)^[ \\t]*(>[ \\t]?)+"), "")
+        t = t.replace(Regex("[\\u200B-\\u200D\\uFEFF\\u00AD]"), "")
+        t = t.replace(Regex("[*_]+"), " ")
+        return t.replace(Regex("\\s+"), " ")
     }
 
     fun limpiarComercio(nombre: String): String {
@@ -72,7 +104,7 @@ object ItauParser {
 
     /** Devuelve el consumo encontrado en el texto o HTML del correo, o null. */
     fun parsear(contenido: String): Consumo? {
-        val m = PATRON.find(htmlATexto(contenido)) ?: return null
+        val m = PATRON.find(normalizar(contenido)) ?: return null
         val g = m.groups
         val original = g["comercio"]!!.value.replace(Regex("\\s+"), " ").trim()
         return Consumo(

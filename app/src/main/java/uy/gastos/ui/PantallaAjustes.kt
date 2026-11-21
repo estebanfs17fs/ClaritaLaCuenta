@@ -2,6 +2,7 @@
 
 package uy.gastos.ui
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,6 +20,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,6 +39,7 @@ import kotlinx.coroutines.launch
 import uy.gastos.data.Ajustes
 import uy.gastos.data.Cambios
 import uy.gastos.data.Db
+import uy.gastos.parser.ItauParser
 import uy.gastos.sync.LectorCorreo
 
 @Composable
@@ -189,10 +192,25 @@ fun PantallaAjustes(modifier: Modifier) {
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp)) {
                         Text("${fechaLegible(c.fecha)} · ${c.asunto}", fontWeight = FontWeight.Medium)
-                        Text(c.extracto.take(400), style = MaterialTheme.typography.bodySmall)
+                        Text(fragmentoRelevante(c.extracto), style = MaterialTheme.typography.bodySmall)
+                        TextButton(onClick = {
+                            val envio = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, c.asunto)
+                                putExtra(Intent.EXTRA_TEXT, c.extracto)
+                            }
+                            ctx.startActivity(Intent.createChooser(envio, "Compartir el correo"))
+                        }) { Text("Compartir texto completo") }
                     }
                 }
             }
         }
     }
+}
+
+/** Muestra la parte del correo alrededor de "consumo", que es donde debería estar el aviso. */
+private fun fragmentoRelevante(crudo: String): String {
+    val t = ItauParser.normalizar(crudo).trim()
+    val i = t.indexOf("consumo", ignoreCase = true)
+    return if (i < 0) t.take(500) else t.substring((i - 100).coerceAtLeast(0), (i + 400).coerceAtMost(t.length))
 }

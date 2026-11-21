@@ -197,7 +197,7 @@ object LectorCorreo {
     private fun pasaAsunto(cfg: ConfigCorreo, asunto: String, cuerpo: String): Boolean {
         val f = sinAcentos(cfg.filtroAsunto.trim())
         // Acepta el texto en el asunto o en el cuerpo (el título del aviso).
-        return f.isEmpty() || f in sinAcentos(asunto) || f in sinAcentos(ItauParser.htmlATexto(cuerpo))
+        return f.isEmpty() || f in sinAcentos(asunto) || f in sinAcentos(ItauParser.normalizar(cuerpo))
     }
 
     private fun fechaLocal(msg: Message): String {
@@ -217,7 +217,7 @@ object LectorCorreo {
         }
         val consumo = ItauParser.parsear(cuerpo)
         if (consumo == null) {
-            db.guardarNoReconocido(id, fecha, asunto, ItauParser.htmlATexto(cuerpo).trim())
+            db.guardarNoReconocido(id, fecha, asunto, cuerpo)
             return Resultado.NO_RECONOCIDO
         }
         db.guardarConsumo(id, fecha, asunto, consumo)

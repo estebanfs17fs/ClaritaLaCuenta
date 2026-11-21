@@ -43,4 +43,40 @@ VISA VIS3 Monto: 820.00 Pesos. Si no fuiste t&uacute; comun&iacute;cate al 1784.
         assertEquals(123400, ItauParser.montoACentavos("1.234"))
         assertEquals(123450, ItauParser.montoACentavos("1.234,5"))
     }
+
+    @Test fun reenvioGmailTextoPlano() {
+        val texto = """---------- Forwarded message ---------
+De: Itaú Comunicaciones <comunicaciones@itau.com.uy>
+Date: jue, 19 nov 2026 a las 21:46
+Subject: Aviso de consumo aprobado con tarjeta de débito
+
+*Aviso de consumo aprobado con tarjeta de débito*
+
+*Se aprobo un consumo de su tarjeta Visa terminada en 1757 . Realizado en
+BOCATTI VISA VIS3 Monto: 820.00 Pesos. Si no fuiste tú comunícate al 1784.*"""
+        val c = assertNotNull(ItauParser.parsear(texto))
+        assertEquals("BOCATTI", c.comercio)
+        assertEquals(82000, c.montoCentavos)
+    }
+
+    @Test fun reenvioCitadoConCortes() {
+        val texto = "> Se aprobo un consumo de su tarjeta Visa terminada en\n> 1757 . Realizado en BOCATTI VISA\n> VIS3 Monto:\n> 820.00 Pesos."
+        val c = assertNotNull(ItauParser.parsear(texto))
+        assertEquals("BOCATTI", c.comercio)
+        assertEquals("1757", c.tarjeta)
+    }
+
+    @Test fun quotedPrintableSinDecodificar() {
+        val texto = "<p style=3D\"x\">Se aprobo un consumo de su tarjeta Visa terminada en 1757 . Realiz=\nado en BOCATTI VISA VIS3 Monto: 820.00 Pesos. Si no fuiste t=C3=BA</p>"
+        val c = assertNotNull(ItauParser.parsear(texto))
+        assertEquals("BOCATTI", c.comercio)
+    }
+
+    @Test fun entidadesHexYNegritasHtml() {
+        val html = "<b>Se aprob&#xF3; un consumo de su tarjeta Visa terminada en</b> <span>1757</span>&#x200B; . " +
+            "Realizado en <b>BOCATTI VISA VIS3</b> <b>Monto:</b>&nbsp;820.00&nbsp;Pesos."
+        val c = assertNotNull(ItauParser.parsear(html))
+        assertEquals("BOCATTI", c.comercio)
+        assertEquals(82000, c.montoCentavos)
+    }
 }

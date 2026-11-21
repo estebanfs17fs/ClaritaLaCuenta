@@ -171,7 +171,7 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "gastos.db", 
     fun guardarNoReconocido(messageId: String, fecha: String, asunto: String, texto: String) {
         writableDatabase.insertWithOnConflict("correos", null, ContentValues().apply {
             put("message_id", messageId); put("fecha", fecha); put("asunto", asunto)
-            put("estado", "no_reconocido"); put("extracto", texto.take(2000))
+            put("estado", "no_reconocido"); put("extracto", texto.take(30000))
         }, SQLiteDatabase.CONFLICT_IGNORE)
         Cambios.avisar()
     }
