@@ -53,6 +53,15 @@ class Ajustes(ctx: Context) {
         prefs.getInt("nuevos_ultima_vez", 0),
     )
 
+    /** Registro de las últimas revisiones, la más nueva primero. */
+    fun registro(): List<String> = prefs.getString("registro", "")!!.split("\n").filter { it.isNotBlank() }
+
+    fun registrar(linea: String) {
+        val nuevo = (listOf(linea.replace("\n", " ")) + registro()).take(30)
+        prefs.edit { putString("registro", nuevo.joinToString("\n")) }
+        Cambios.avisar()
+    }
+
     fun guardarEstado(e: EstadoLectura) {
         prefs.edit {
             putString("ultima_revision", e.ultimaRevision); putString("ultimo_error", e.ultimoError)

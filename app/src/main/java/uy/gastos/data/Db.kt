@@ -176,8 +176,15 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "gastos.db", 
         Cambios.avisar()
     }
 
+    fun guardarIgnorado(messageId: String, fecha: String, asunto: String) {
+        writableDatabase.insertWithOnConflict("correos", null, ContentValues().apply {
+            put("message_id", messageId); put("fecha", fecha); put("asunto", asunto); put("estado", "ignorado")
+        }, SQLiteDatabase.CONFLICT_IGNORE)
+    }
+
+    /** Vuelve a leer los correos que no se reconocieron o se ignoraron (por ejemplo, tras cambiar filtros). */
     fun olvidarNoReconocidos() {
-        writableDatabase.delete("correos", "estado = 'no_reconocido'", null)
+        writableDatabase.delete("correos", "estado IN ('no_reconocido', 'ignorado')", null)
         Cambios.avisar()
     }
 

@@ -63,6 +63,9 @@ fun PantallaAjustes(modifier: Modifier) {
     var activado by remember { mutableStateOf(inicial.activado) }
     var revisando by remember { mutableStateOf(false) }
     var aviso by remember { mutableStateOf("") }
+    var informe by remember { mutableStateOf<List<String>>(emptyList()) }
+    var probando by remember { mutableStateOf(false) }
+    val registro = remember(version) { ajustes.registro() }
 
     fun revisarAhora() {
         revisando = true
@@ -88,8 +91,24 @@ fun PantallaAjustes(modifier: Modifier) {
                     Text("Error: ${estado.ultimoError}", color = MaterialTheme.colorScheme.error)
                 }
                 if (aviso.isNotBlank()) Text(aviso, color = MaterialTheme.colorScheme.primary)
-                Button(onClick = { revisarAhora() }, enabled = !revisando, modifier = Modifier.padding(top = 8.dp)) {
-                    Text(if (revisando) "Revisando…" else "Revisar ahora")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                    Button(onClick = { revisarAhora() }, enabled = !revisando) {
+                        Text(if (revisando) "Revisando…" else "Revisar ahora")
+                    }
+                    OutlinedButton(onClick = {
+                        probando = true
+                        informe = listOf("Probando…")
+                        alcance.launch { informe = LectorCorreo.diagnosticar(ctx); probando = false }
+                    }, enabled = !probando) { Text("Probar conexión") }
+                }
+            }
+        }
+
+        if (informe.isNotEmpty()) {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Prueba de conexión", style = MaterialTheme.typography.titleMedium)
+                    informe.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
                 }
             }
         }
@@ -113,7 +132,7 @@ fun PantallaAjustes(modifier: Modifier) {
         Text("Qué correos leer", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
         OutlinedTextField(remitente, { remitente = it }, label = { Text("El remitente contiene") }, singleLine = true,
             modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(asunto, { asunto = it }, label = { Text("El asunto contiene") }, singleLine = true,
+        OutlinedTextField(asunto, { asunto = it }, label = { Text("El asunto o el texto contiene") }, singleLine = true,
             modifier = Modifier.fillMaxWidth())
         OutlinedTextField(desde, { desde = it }, label = { Text("Leer desde (aaaa-mm-dd, vacío = 30 días)") },
             singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -149,12 +168,23 @@ fun PantallaAjustes(modifier: Modifier) {
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Guardar y revisar") }
 
+        OutlinedButton(onClick = { db.olvidarNoReconocidos(); revisarAhora() }, modifier = Modifier.fillMaxWidth()) {
+            Text("Volver a leer los correos descartados")
+        }
+        Text("Usalo después de cambiar los filtros: vuelve a revisar los correos que se habían descartado.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+        if (registro.isNotEmpty()) {
+            Text("Registro de revisiones", style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 16.dp))
+            registro.take(15).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+        }
+
         if (noReconocidos.isNotEmpty()) {
             Text("Correos que no se pudieron leer", style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(top = 16.dp))
             Text("Coinciden con el filtro pero no tienen el formato esperado.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedButton(onClick = { db.olvidarNoReconocidos(); revisarAhora() }) { Text("Volver a intentar") }
             noReconocidos.forEach { c ->
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp)) {
