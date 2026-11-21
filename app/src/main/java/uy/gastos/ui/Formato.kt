@@ -93,3 +93,24 @@ private val PALETA = listOf(
 fun colorCuenta(cuentaId: Long?, idsOrdenados: List<Long>): Color =
     if (cuentaId == null) ColorPersonal
     else PALETA[(idsOrdenados.indexOf(cuentaId).coerceAtLeast(0)) % PALETA.size]
+
+/** Encabezado de día para las listas: "Hoy", "Ayer" o "Jueves 19 de noviembre". */
+fun encabezadoDia(iso: String): String {
+    val dia = runCatching { LocalDate.parse(iso.take(10)) }.getOrNull() ?: return iso
+    val hoy = LocalDate.now()
+    return when (dia) {
+        hoy -> "Hoy"
+        hoy.minusDays(1) -> "Ayer"
+        else -> {
+            val formato = if (dia.year == hoy.year) "EEEE d 'de' MMMM" else "EEEE d 'de' MMMM 'de' yyyy"
+            dia.format(DateTimeFormatter.ofPattern(formato, ES)).replaceFirstChar { it.uppercase() }
+        }
+    }
+}
+
+fun hora(iso: String): String = if (iso.length >= 16) iso.substring(11, 16) else ""
+
+fun inicial(nombre: String): String = nombre.trim().firstOrNull { it.isLetterOrDigit() }?.uppercase() ?: "?"
+
+/** Identificador de destino para filtros: 0 = Personal, otro = id de cuenta. */
+fun claveDestino(cuentaId: Long?): Long = cuentaId ?: 0L

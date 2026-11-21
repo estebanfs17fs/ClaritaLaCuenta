@@ -6,6 +6,7 @@ import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -14,6 +15,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -79,14 +83,23 @@ fun PantallaAjustes(modifier: Modifier) {
         }
     }
 
+    Scaffold(
+        modifier,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = { TopAppBar(title = { Text("Ajustes del correo") }) },
+    ) { relleno ->
     Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        Modifier.padding(relleno).fillMaxSize().verticalScroll(rememberScrollState())
+            .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("Ajustes del correo", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
 
-        Card(Modifier.fillMaxWidth()) {
+        Card(
+            Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Estado", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text("Última revisión: ${estado.ultimaRevision.ifBlank { "todavía no" }}")
                 Text("Consumos nuevos en la última revisión: ${estado.nuevosUltimaVez}")
                 Text("Correos leídos en total: $leidos")
@@ -116,7 +129,7 @@ fun PantallaAjustes(modifier: Modifier) {
             }
         }
 
-        Text("Cuenta de correo", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+        TituloSeccion("Cuenta de correo")
         OutlinedTextField(usuario, { usuario = it }, label = { Text("Usuario") }, singleLine = true,
             modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email))
         OutlinedTextField(contrasena, { contrasena = it }, label = { Text("Contraseña de aplicación") },
@@ -132,7 +145,7 @@ fun PantallaAjustes(modifier: Modifier) {
                 modifier = Modifier.weight(2f))
         }
 
-        Text("Qué correos leer", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+        TituloSeccion("Qué correos leer")
         OutlinedTextField(remitente, { remitente = it }, label = { Text("El remitente contiene") }, singleLine = true,
             modifier = Modifier.fillMaxWidth())
         OutlinedTextField(asunto, { asunto = it }, label = { Text("El asunto o el texto contiene") }, singleLine = true,
@@ -140,7 +153,7 @@ fun PantallaAjustes(modifier: Modifier) {
         OutlinedTextField(desde, { desde = it }, label = { Text("Leer desde (aaaa-mm-dd, vacío = 30 días)") },
             singleLine = true, modifier = Modifier.fillMaxWidth())
 
-        Text("Frecuencia", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+        TituloSeccion("Frecuencia")
         OutlinedTextField(intervalo, { intervalo = it }, label = { Text("Con la app abierta, revisar cada (segundos)") },
             singleLine = true, modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
@@ -178,14 +191,12 @@ fun PantallaAjustes(modifier: Modifier) {
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         if (registro.isNotEmpty()) {
-            Text("Registro de revisiones", style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 16.dp))
+            TituloSeccion("Registro de revisiones")
             registro.take(15).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
         }
 
         if (noReconocidos.isNotEmpty()) {
-            Text("Correos que no se pudieron leer", style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 16.dp))
+            TituloSeccion("Correos que no se pudieron leer")
             Text("Coinciden con el filtro pero no tienen el formato esperado.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             noReconocidos.forEach { c ->
@@ -205,6 +216,7 @@ fun PantallaAjustes(modifier: Modifier) {
                 }
             }
         }
+    }
     }
 }
 

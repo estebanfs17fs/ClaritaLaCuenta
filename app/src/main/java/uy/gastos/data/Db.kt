@@ -221,7 +221,7 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "gastos.db", 
     }
 
     fun borrarMovimiento(id: Long) {
-        writableDatabase.delete("movimientos", "id = ? AND origen = 'manual'", arrayOf(id.toString()))
+        writableDatabase.delete("movimientos", "id = ?", arrayOf(id.toString()))
         Cambios.avisar()
     }
 

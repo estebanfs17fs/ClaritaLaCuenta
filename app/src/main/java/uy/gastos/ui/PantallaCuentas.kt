@@ -2,30 +2,31 @@
 
 package uy.gastos.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -34,10 +35,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import java.time.LocalDate
 import uy.gastos.data.Cambios
 import uy.gastos.data.Cuenta
 import uy.gastos.data.Db
@@ -49,46 +50,67 @@ fun PantallaCuentas(modifier: Modifier) {
     val db = remember { Db.get(ctx) }
     val cuentas = remember(version) { db.cuentas() }
     val ids = cuentas.map { it.id }
+    val mes = rango(Periodo.MES, LocalDate.now())
+    val gastosMes = remember(version) {
+        db.movimientos(mes.desdeIso, mes.hastaIso).filter { it.tipo == "egreso" && it.moneda == "UYU" }
+            .groupBy { it.cuentaEfectiva }.mapValues { (_, ms) -> ms.sumOf { it.montoCentavos } }
+    }
     // null = cerrado; Cuenta con id 0 = nueva
     var editando by remember { mutableStateOf<Cuenta?>(null) }
 
-    Box(modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize()) {
+    Scaffold(
+        modifier,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = { TopAppBar(title = { Text("Cuentas compartidas") }) },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(onClick = { editando = Cuenta(0, "", "") },
+                icon = { Icon(Icons.Filled.Add, null) }, text = { Text("Nueva cuenta") })
+        },
+    ) { relleno ->
+        LazyColumn(
+            Modifier.padding(relleno).fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             item {
-                Column(Modifier.padding(16.dp)) {
-                    Text("Cuentas compartidas", style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold)
-                    Text("Por ejemplo \"Casa\", \"Viaje\" o \"Fútbol\". Lo que no se carga a una cuenta compartida " +
-                        "es personal.", style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                Text("Lo que no se carga a una cuenta compartida es personal. Ejemplos: \"Casa\", \"Viaje\", \"Fútbol\".",
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            item {
+                TarjetaCuenta("Personal", "Todo lo que no es compartido", colorCuenta(null, ids), gastosMes[null] ?: 0L) {}
             }
             if (cuentas.isEmpty()) item {
-                Text("Todavía no hay cuentas. Tocá + para crear la primera.", Modifier.padding(16.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Filled.Group, null, tint = MaterialTheme.colorScheme.outline)
+                    Text("Todavía no hay cuentas compartidas.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
             items(cuentas, key = { it.id }) { c ->
-                Row(
-                    Modifier.fillMaxWidth().clickable { editando = c }.padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(Modifier.size(12.dp).clip(CircleShape).background(colorCuenta(c.id, ids)))
-                    Column(Modifier.padding(start = 12.dp)) {
-                        Text(c.nombre, fontWeight = FontWeight.Medium)
-                        if (c.descripcion.isNotBlank()) Text(c.descripcion, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                HorizontalDivider()
+                TarjetaCuenta(c.nombre, c.descripcion, colorCuenta(c.id, ids), gastosMes[c.id] ?: 0L) { editando = c }
             }
         }
-        FloatingActionButton(
-            onClick = { editando = Cuenta(0, "", "") },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-        ) { Icon(Icons.Filled.Add, contentDescription = "Nueva cuenta") }
     }
 
     editando?.let { c -> DialogoCuenta(c, db) { editando = null } }
+}
+
+@Composable
+private fun TarjetaCuenta(nombre: String, descripcion: String, color: androidx.compose.ui.graphics.Color,
+                          gastoMes: Long, alTocar: () -> Unit) {
+    ElevatedCard(Modifier.fillMaxWidth().clickable(onClick = alTocar)) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Avatar(nombre, color, 48.dp)
+            Column(Modifier.weight(1f).padding(start = 16.dp)) {
+                Text(nombre, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                if (descripcion.isNotBlank()) Text(descripcion, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text("Este mes", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(dinero(gastoMes, "UYU"), fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
 }
 
 @Composable
@@ -101,6 +123,7 @@ private fun DialogoCuenta(c: Cuenta, db: Db, cerrar: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = cerrar,
+        icon = { Icon(Icons.Filled.Group, null) },
         title = { Text(if (nueva) "Nueva cuenta compartida" else "Editar cuenta") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
