@@ -51,7 +51,7 @@ object Cambios {
     fun avisar() { version.value = version.value + 1 }
 }
 
-class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "gastos.db", null, 1) {
+class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "gastos.db", null, 2) {
 
     companion object {
         @Volatile private var instancia: Db? = null
@@ -85,7 +85,11 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "gastos.db", 
             message_id TEXT PRIMARY KEY, fecha TEXT, asunto TEXT, estado TEXT NOT NULL, extracto TEXT)""")
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        // Versión 2: las anteriores no podían leer el cuerpo de algunos correos.
+        // Se olvidan los descartados para que se vuelvan a procesar.
+        if (oldVersion < 2) db.execSQL("DELETE FROM correos WHERE estado != 'ok'")
+    }
 
     // ---------- Lectura ----------
 

@@ -2,6 +2,7 @@ package uy.gastos.sync
 
 import android.content.Context
 import android.util.Log
+import java.nio.charset.Charset
 import java.text.Normalizer
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -12,12 +13,14 @@ import java.util.Properties
 import javax.mail.FetchProfile
 import javax.mail.Folder
 import javax.mail.Message
-import javax.mail.Multipart
 import javax.mail.Part
 import javax.mail.Session
 import javax.mail.Store
 import javax.mail.UIDFolder
+import javax.mail.internet.ContentType
 import javax.mail.internet.MimeMessage
+import javax.mail.internet.MimeMultipart
+import javax.mail.internet.MimeUtility
 import javax.mail.search.ComparisonTerm
 import javax.mail.search.ReceivedDateTerm
 import kotlinx.coroutines.Dispatchers
@@ -224,21 +227,27 @@ object LectorCorreo {
         return Resultado.NUEVO
     }
 
-    private fun texto(p: Part): String = try {
+    /**
+     * Extrae el texto de un correo sin depender de los "content handlers" de JavaMail,
+     * que en Android pueden faltar y hacer que el cuerpo salga vacío.
+     */
+    internal fun texto(p: Part): String = try {
         when {
-            p.isMimeType("text/*") -> when (val c = p.content) {
-                is String -> c
-                else -> p.inputStream.readBytes().toString(Charsets.UTF_8)
-            }
             p.isMimeType("multipart/*") -> {
-                val mp = p.content as Multipart
+                val mp = MimeMultipart(p.dataHandler.dataSource)
                 (0 until mp.count).joinToString("\n") { texto(mp.getBodyPart(it)) }
             }
-            p.isMimeType("message/rfc822") -> texto(p.content as Part)
+            p.isMimeType("message/rfc822") -> texto(MimeMessage(Session.getInstance(Properties()), p.inputStream))
+            p.isMimeType("text/*") || p.contentType.isNullOrBlank() -> {
+                val nombre = runCatching { ContentType(p.contentType).getParameter("charset") }.getOrNull()
+                val charset = runCatching { Charset.forName(MimeUtility.javaCharset(nombre ?: "UTF-8")) }
+                    .getOrDefault(Charsets.UTF_8)
+                String(p.inputStream.readBytes(), charset)
+            }
             else -> ""
         }
     } catch (e: Exception) {
         Log.w("LectorCorreo", "No se pudo leer una parte del correo", e)
-        ""
+        "[Error al leer esta parte: ${e.javaClass.simpleName}: ${e.message}]"
     }
 }

@@ -47,8 +47,8 @@ android {
     packaging {
         resources {
             excludes += setOf(
-                "META-INF/LICENSE*", "META-INF/NOTICE*", "META-INF/DEPENDENCIES",
-                "META-INF/*.md", "META-INF/mailcap*", "META-INF/javamail*",
+                // No excluir META-INF/mailcap* ni META-INF/javamail*: JavaMail los necesita.
+                "META-INF/LICENSE*", "META-INF/NOTICE*", "META-INF/DEPENDENCIES", "META-INF/*.md",
             )
         }
     }
