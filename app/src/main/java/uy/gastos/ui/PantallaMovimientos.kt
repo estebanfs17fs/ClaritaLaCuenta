@@ -53,6 +53,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -95,6 +96,12 @@ fun PantallaMovimientos(
     val porDia = movs.groupBy { it.fecha.take(10) }
 
     var detalle by remember { mutableStateOf<Movimiento?>(null) }
+    // Movimiento pedido desde una notificación.
+    val pedido by Navegacion.movimiento.collectAsState()
+    LaunchedEffect(pedido) {
+        pedido?.let { id -> db.movimiento(id)?.let { detalle = it } }
+        Navegacion.movimiento.value = null
+    }
     var agregando by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     val alcance = rememberCoroutineScope()

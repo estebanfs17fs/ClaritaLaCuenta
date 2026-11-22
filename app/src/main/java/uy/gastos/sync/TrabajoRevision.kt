@@ -14,7 +14,11 @@ import uy.gastos.data.Ajustes
 /** Revisión en segundo plano: Android permite como mínimo cada 15 minutos. */
 class TrabajoRevision(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
     override suspend fun doWork(): Result {
-        if (Ajustes(applicationContext).leer().activado) LectorCorreo.revisar(applicationContext)
+        if (Ajustes(applicationContext).leer().activado) {
+            // Respaldo por si Android cerró el servicio continuo: intenta reabrirlo y revisa igual.
+            ServicioCorreo.sincronizar(applicationContext)
+            LectorCorreo.revisar(applicationContext)
+        }
         return Result.success()
     }
 

@@ -26,13 +26,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.repeatOnLifecycle
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.collectAsState
+import androidx.core.content.ContextCompat
 import java.time.LocalDate
-import kotlinx.coroutines.delay
-import uy.gastos.data.Ajustes
-import uy.gastos.sync.LectorCorreo
+import kotlinx.coroutines.flow.MutableStateFlow
+import uy.gastos.sync.Notificaciones
+import uy.gastos.sync.ServicioCorreo
 
 private enum class Pestana(val titulo: String, val icono: ImageVector) {
     RESUMEN("Resumen", Icons.Filled.PieChart),
@@ -42,17 +46,52 @@ private enum class Pestana(val titulo: String, val icono: ImageVector) {
     AJUSTES("Ajustes", Icons.Filled.Settings),
 }
 
+/** Pedidos de navegación que llegan desde las notificaciones. */
+object Navegacion {
+    val pantalla = MutableStateFlow<String?>(null)
+    val movimiento = MutableStateFlow<Long?>(null)
+
+    fun desde(intent: Intent?) {
+        intent ?: return
+        val id = intent.getLongExtra(Notificaciones.EXTRA_MOVIMIENTO, -1L)
+        if (id > 0) { movimiento.value = id; pantalla.value = "actividad" }
+        intent.getStringExtra(Notificaciones.EXTRA_PANTALLA)?.let { pantalla.value = it }
+        intent.removeExtra(Notificaciones.EXTRA_MOVIMIENTO)
+        intent.removeExtra(Notificaciones.EXTRA_PANTALLA)
+    }
+}
+
 class MainActivity : ComponentActivity() {
+    private val pedirPermiso = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        ServicioCorreo.sincronizar(this)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (savedInstanceState == null) Navegacion.desde(intent)
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            pedirPermiso.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
         setContent { Tema { App() } }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        Navegacion.desde(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Con la app en primer plano Android siempre deja arrancar el servicio.
+        ServicioCorreo.sincronizar(this)
     }
 }
 
 @Composable
 private fun App() {
-    val ctx = LocalContext.current
     var pestana by rememberSaveable { mutableStateOf(Pestana.RESUMEN) }
     var periodo by rememberSaveable { mutableStateOf(Periodo.MES) }
     var ancla by rememberSaveable { mutableStateOf(LocalDate.now().toString()) }
@@ -62,16 +101,14 @@ private fun App() {
     val filtro = filtroTexto.split(",").mapNotNull { it.toLongOrNull() }.toSet()
     val alCambiarFiltro: (Set<Long>) -> Unit = { filtroTexto = it.joinToString(",") }
 
-    // Mientras la app está abierta, revisa el correo con el intervalo configurado.
-    val ciclo = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(Unit) {
-        ciclo.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            while (true) {
-                val cfg = Ajustes(ctx).leer()
-                if (cfg.activado) LectorCorreo.revisar(ctx)
-                delay(cfg.intervaloSegundos.coerceAtLeast(30) * 1000L)
-            }
+    // Al tocar una notificación, ir a la pantalla que corresponde.
+    val pedido by Navegacion.pantalla.collectAsState()
+    LaunchedEffect(pedido) {
+        when (pedido) {
+            "actividad" -> pestana = Pestana.MOVIMIENTOS
+            "ajustes" -> pestana = Pestana.AJUSTES
         }
+        if (pedido != null) Navegacion.pantalla.value = null
     }
 
     Scaffold(

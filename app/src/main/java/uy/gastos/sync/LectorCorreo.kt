@@ -41,20 +41,34 @@ object LectorCorreo {
 
     private enum class Resultado { NUEVO, REPETIDO, IGNORADO, NO_RECONOCIDO }
 
+    /** Lo encontrado en una revisión, para avisar al usuario. */
+    class Hallazgos {
+        val nuevos = mutableListOf<Long>()
+        val noReconocidos = mutableListOf<String>()
+    }
+
     /** Revisa la casilla una vez. Devuelve la cantidad de consumos nuevos, o -1 si hubo un error. */
     suspend fun revisar(ctx: Context): Int = mutex.withLock {
         withContext(Dispatchers.IO) {
             val ajustes = Ajustes(ctx)
             try {
-                val (nuevos, resumen) = revisarCasilla(ctx, ajustes.leer())
+                val hallazgos = Hallazgos()
+                val (nuevos, resumen) = revisarCasilla(ctx, ajustes.leer(), hallazgos)
                 ajustes.guardarEstado(EstadoLectura(ahora(), "", nuevos))
-                ajustes.registrar("${ahora()} · $resumen")
+                if (nuevos > 0 || hallazgos.noReconocidos.isNotEmpty() || ajustes.fallasSeguidas() > 0) {
+                    ajustes.registrar("${ahora()} · $resumen")
+                }
+                if (ajustes.fallasSeguidas() > 0) Notificaciones.quitarError(ctx)
+                ajustes.reiniciarFallas()
+                runCatching { Notificaciones.avisarHallazgos(ctx, hallazgos) }.onFailure { Log.w("LectorCorreo", "Aviso", it) }
                 nuevos
             } catch (e: Throwable) {
                 Log.w("LectorCorreo", "Error al revisar", e)
                 val texto = describir(e)
                 ajustes.guardarEstado(EstadoLectura(ahora(), texto, 0))
                 ajustes.registrar("${ahora()} · Error: $texto")
+                // Se avisa recién a la tercera falla seguida, para no alertar por cortes breves de red.
+                if (ajustes.sumarFalla() == 3) Notificaciones.errorDeConexion(ctx, texto)
                 -1
             }
         }
@@ -146,7 +160,7 @@ object LectorCorreo {
 
     private fun aDate(d: LocalDate): Date = Date.from(d.atStartOfDay(ZoneId.systemDefault()).toInstant())
 
-    private fun revisarCasilla(ctx: Context, cfg: ConfigCorreo): Pair<Int, String> {
+    private fun revisarCasilla(ctx: Context, cfg: ConfigCorreo, hallazgos: Hallazgos): Pair<Int, String> {
         require(cfg.usuario.isNotBlank() && cfg.contrasena.isNotBlank()) {
             "Falta configurar el usuario o la contraseña de aplicación."
         }
@@ -164,7 +178,7 @@ object LectorCorreo {
                 })
                 val cuenta = Resultado.entries.associateWith { 0 }.toMutableMap()
                 for (msg in mensajes) {
-                    val r = procesar(db, cfg, msg)
+                    val r = procesar(db, cfg, msg, hallazgos)
                     cuenta[r] = cuenta.getValue(r) + 1
                 }
                 val nuevos = cuenta.getValue(Resultado.NUEVO)
@@ -208,7 +222,7 @@ object LectorCorreo {
         return LocalDateTime.ofInstant(fecha.toInstant(), ZoneId.systemDefault()).format(FORMATO_FECHA)
     }
 
-    private fun procesar(db: Db, cfg: ConfigCorreo, msg: Message): Resultado {
+    private fun procesar(db: Db, cfg: ConfigCorreo, msg: Message, hallazgos: Hallazgos): Resultado {
         val id = idMensaje(msg)
         if (db.correoProcesado(id)) return Resultado.REPETIDO
         val asunto = msg.subject ?: ""
@@ -221,9 +235,10 @@ object LectorCorreo {
         val consumo = ItauParser.parsear(cuerpo)
         if (consumo == null) {
             db.guardarNoReconocido(id, fecha, asunto, cuerpo)
+            hallazgos.noReconocidos += asunto.ifBlank { "(sin asunto)" }
             return Resultado.NO_RECONOCIDO
         }
-        db.guardarConsumo(id, fecha, asunto, consumo)
+        hallazgos.nuevos += db.guardarConsumo(id, fecha, asunto, consumo)
         return Resultado.NUEVO
     }
 

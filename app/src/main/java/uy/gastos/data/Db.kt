@@ -110,24 +110,28 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "gastos.db", 
             it.getInt(4), it.getLong(5), it.getLong(6))
     }
 
+    private val SELECT_MOVIMIENTOS = """SELECT m.id, m.fecha, m.tipo, m.tarjeta, m.comercio_id, c.nombre_original,
+                  c.nombre_propio, m.descripcion, m.monto_centavos, m.moneda, m.asignacion, m.cuenta_id, c.cuenta_id,
+                  $CUENTA_EFECTIVA, m.origen
+           FROM movimientos m LEFT JOIN comercios c ON c.id = m.comercio_id"""
+
+    private fun leerMovimiento(it: Cursor) = Movimiento(
+        id = it.getLong(0), fecha = it.getString(1), tipo = it.getString(2), tarjeta = it.getStringOrNull(3),
+        comercioId = it.getLongOrNull(4), nombreOriginal = it.getStringOrNull(5),
+        nombrePropio = it.getStringOrNull(6), descripcion = it.getString(7), montoCentavos = it.getLong(8),
+        moneda = it.getString(9), asignacion = it.getString(10), cuentaId = it.getLongOrNull(11),
+        cuentaComercio = it.getLongOrNull(12), cuentaEfectiva = it.getLongOrNull(13), origen = it.getString(14),
+    )
+
     /** Movimientos con fecha en [desde, hasta). Fechas en formato ISO "yyyy-MM-dd". */
     fun movimientos(desde: String, hasta: String): List<Movimiento> = readableDatabase.rawQuery(
-        """SELECT m.id, m.fecha, m.tipo, m.tarjeta, m.comercio_id, c.nombre_original, c.nombre_propio,
-                  m.descripcion, m.monto_centavos, m.moneda, m.asignacion, m.cuenta_id, c.cuenta_id,
-                  $CUENTA_EFECTIVA, m.origen
-           FROM movimientos m LEFT JOIN comercios c ON c.id = m.comercio_id
-           WHERE m.fecha >= ? AND m.fecha < ?
-           ORDER BY m.fecha DESC, m.id DESC""",
+        "$SELECT_MOVIMIENTOS WHERE m.fecha >= ? AND m.fecha < ? ORDER BY m.fecha DESC, m.id DESC",
         arrayOf(desde, hasta),
-    ).mapear {
-        Movimiento(
-            id = it.getLong(0), fecha = it.getString(1), tipo = it.getString(2), tarjeta = it.getStringOrNull(3),
-            comercioId = it.getLongOrNull(4), nombreOriginal = it.getStringOrNull(5),
-            nombrePropio = it.getStringOrNull(6), descripcion = it.getString(7), montoCentavos = it.getLong(8),
-            moneda = it.getString(9), asignacion = it.getString(10), cuentaId = it.getLongOrNull(11),
-            cuentaComercio = it.getLongOrNull(12), cuentaEfectiva = it.getLongOrNull(13), origen = it.getString(14),
-        )
-    }
+    ).mapear { leerMovimiento(it) }
+
+    fun movimiento(id: Long): Movimiento? = readableDatabase.rawQuery(
+        "$SELECT_MOVIMIENTOS WHERE m.id = ?", arrayOf(id.toString()),
+    ).mapear { leerMovimiento(it) }.firstOrNull()
 
     fun correoProcesado(messageId: String): Boolean = readableDatabase.rawQuery(
         "SELECT 1 FROM correos WHERE message_id = ?", arrayOf(messageId),
@@ -151,12 +155,14 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "gastos.db", 
         return db.insertOrThrow("comercios", null, ContentValues().apply { put("nombre_original", nombre) })
     }
 
-    fun guardarConsumo(messageId: String, fecha: String, asunto: String, c: Consumo) {
+    /** Guarda el consumo y devuelve el id del movimiento creado. */
+    fun guardarConsumo(messageId: String, fecha: String, asunto: String, c: Consumo): Long {
         val db = writableDatabase
+        val id: Long
         db.beginTransaction()
         try {
             val comercio = comercioId(db, c.comercio)
-            db.insertOrThrow("movimientos", null, ContentValues().apply {
+            id = db.insertOrThrow("movimientos", null, ContentValues().apply {
                 put("fecha", fecha); put("tipo", "egreso"); put("tarjeta", c.tarjeta)
                 put("comercio_id", comercio); put("descripcion", c.comercioOriginal)
                 put("monto_centavos", c.montoCentavos); put("moneda", c.moneda)
@@ -170,6 +176,7 @@ class Db private constructor(ctx: Context) : SQLiteOpenHelper(ctx, "gastos.db", 
             db.endTransaction()
         }
         Cambios.avisar()
+        return id
     }
 
     fun guardarNoReconocido(messageId: String, fecha: String, asunto: String, texto: String) {

@@ -45,6 +45,14 @@ import uy.gastos.data.Cambios
 import uy.gastos.data.Db
 import uy.gastos.parser.ItauParser
 import uy.gastos.sync.LectorCorreo
+import uy.gastos.sync.Notificaciones
+import uy.gastos.sync.ServicioCorreo
+import android.net.Uri
+import android.os.PowerManager
+import android.provider.Settings
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 
 @Composable
 fun PantallaAjustes(modifier: Modifier) {
@@ -160,16 +168,19 @@ fun PantallaAjustes(modifier: Modifier) {
         }
 
 
-        TituloSeccion("Frecuencia")
-        OutlinedTextField(intervalo, { intervalo = it }, label = { Text("Con la app abierta, revisar cada (segundos)") },
-            singleLine = true, modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-        Text("Con la app cerrada, Android la deja revisar cada 15 minutos.",
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        TituloSeccion("Revisión automática")
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Revisar automáticamente", Modifier.weight(1f))
+            Column(Modifier.weight(1f)) {
+                Text("Revisar todo el tiempo")
+                Text("También con la app cerrada y después de reiniciar el celular.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             Switch(checked = activado, onCheckedChange = { activado = it })
         }
+        OutlinedTextField(intervalo, { intervalo = it }, label = { Text("Revisar cada (segundos)") },
+            singleLine = true, modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+        PermisosSegundoPlano(version = version)
 
         Button(
             onClick = {
@@ -186,6 +197,7 @@ fun PantallaAjustes(modifier: Modifier) {
                     activado = activado,
                 ))
                 contrasena = ""
+                ServicioCorreo.sincronizar(ctx)
                 revisarAhora()
             },
             modifier = Modifier.fillMaxWidth(),
@@ -232,4 +244,51 @@ private fun fragmentoRelevante(crudo: String): String {
     val t = ItauParser.normalizar(crudo).trim()
     val i = t.indexOf("consumo", ignoreCase = true)
     return if (i < 0) t.take(500) else t.substring((i - 100).coerceAtLeast(0), (i + 400).coerceAtMost(t.length))
+}
+
+/** Lo que Android necesita para que la revisión siga con la app cerrada: notificaciones y sin ahorro de batería. */
+@Composable
+private fun PermisosSegundoPlano(version: Int) {
+    val ctx = LocalContext.current
+    val ciclo = LocalLifecycleOwner.current.lifecycle
+    var chequeo by remember { mutableStateOf(0) }
+    // Al volver de los ajustes del sistema, volver a mirar el estado.
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        ciclo.repeatOnLifecycle(Lifecycle.State.RESUMED) { chequeo++ }
+    }
+    val notificaciones = remember(chequeo, version) { Notificaciones.puedeNotificar(ctx) }
+    val sinRestriccion = remember(chequeo, version) {
+        ctx.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(ctx.packageName)
+    }
+    if (notificaciones && sinRestriccion) {
+        Text("Notificaciones y batería listas para revisar en segundo plano.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+        return
+    }
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Falta un permiso", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            if (!notificaciones) {
+                Text("Sin notificaciones no te puedo avisar de gastos nuevos ni de correos que no pude leer.",
+                    style = MaterialTheme.typography.bodySmall)
+                OutlinedButton(onClick = {
+                    ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName))
+                }) { Text("Activar notificaciones") }
+            }
+            if (!sinRestriccion) {
+                Text("Android puede pausar la revisión para ahorrar batería. Permití que la app funcione sin restricciones.",
+                    style = MaterialTheme.typography.bodySmall)
+                OutlinedButton(onClick = {
+                    val pedido = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${ctx.packageName}"))
+                    try { ctx.startActivity(pedido) } catch (_: Exception) {
+                        ctx.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                    }
+                }) { Text("Quitar el ahorro de batería") }
+            }
+        }
+    }
 }

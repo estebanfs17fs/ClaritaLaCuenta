@@ -62,6 +62,10 @@ class Ajustes(ctx: Context) {
         Cambios.avisar()
     }
 
+    fun fallasSeguidas(): Int = prefs.getInt("fallas_seguidas", 0)
+    fun sumarFalla(): Int = (fallasSeguidas() + 1).also { n -> prefs.edit { putInt("fallas_seguidas", n) } }
+    fun reiniciarFallas() { if (fallasSeguidas() != 0) prefs.edit { putInt("fallas_seguidas", 0) } }
+
     fun guardarEstado(e: EstadoLectura) {
         prefs.edit {
             putString("ultima_revision", e.ultimaRevision); putString("ultimo_error", e.ultimoError)
