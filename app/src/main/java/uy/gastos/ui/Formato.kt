@@ -83,16 +83,10 @@ fun fechaLegible(iso: String): String = iso.replace('T', ' ').let {
     if (it.length >= 16) "${it.substring(8, 10)}/${it.substring(5, 7)} ${it.substring(11, 16)}" else it
 }
 
-val ColorPersonal = Color(0xFF7A869A)
-private val PALETA = listOf(
-    Color(0xFFEC7000), Color(0xFF1B8A8F), Color(0xFF6E56CF), Color(0xFF2F9E44),
-    Color(0xFFD6336C), Color(0xFF1971C2), Color(0xFFB08800), Color(0xFF8D4E2A),
-)
-
 /** Color estable por cuenta: null = personal. */
 fun colorCuenta(cuentaId: Long?, idsOrdenados: List<Long>): Color =
-    if (cuentaId == null) ColorPersonal
-    else PALETA[(idsOrdenados.indexOf(cuentaId).coerceAtLeast(0)) % PALETA.size]
+    if (cuentaId == null) Paleta.personal
+    else Paleta.cuenta(idsOrdenados.indexOf(cuentaId).coerceAtLeast(0))
 
 /** Encabezado de día para las listas: "Hoy", "Ayer" o "Jueves 19 de noviembre". */
 fun encabezadoDia(iso: String): String {

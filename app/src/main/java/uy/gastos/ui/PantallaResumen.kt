@@ -2,7 +2,6 @@
 
 package uy.gastos.ui
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,14 +23,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -47,11 +44,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -140,36 +134,38 @@ fun PantallaResumen(
             // Tarjeta principal con el total
             Card(
                 Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
                 shape = MaterialTheme.shapes.large,
             ) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         if (filtroValido.isEmpty()) "Gastado en total"
                         else "Gastado en " + porcionesNombres(filtroValido, nombres),
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f), maxLines = 1,
                     )
-                    Text(dinero(total, moneda), style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    val texto = dinero(total, moneda)
+                    Text(
+                        texto, maxLines = 1, fontWeight = FontWeight.SemiBold,
+                        style = if (texto.length > 13) MaterialTheme.typography.headlineLarge
+                        else MaterialTheme.typography.displaySmall,
+                    )
                     Text("$compras ${if (compras == 1) "compra" else "compras"}",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
-                    Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f))
+                    Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (anterior > 0) {
                             val cambio = ((total - anterior) * 100.0 / anterior).toInt()
-                            AssistChip(
-                                onClick = {},
-                                label = { Text("${if (cambio >= 0) "+" else ""}$cambio% vs. anterior") },
-                                leadingIcon = {
-                                    Icon(if (cambio >= 0) Icons.AutoMirrored.Filled.TrendingUp
-                                    else Icons.AutoMirrored.Filled.TrendingDown, null, Modifier.size(18.dp))
-                                },
+                            Pastilla(
+                                "${if (cambio >= 0) "+" else ""}$cambio% vs. período anterior",
+                                if (cambio >= 0) Icons.AutoMirrored.Filled.TrendingUp
+                                else Icons.AutoMirrored.Filled.TrendingDown,
                             )
                         }
-                        if (ingresos > 0) {
-                            AssistChip(onClick = {}, label = { Text("Ingresos ${dinero(ingresos, moneda)}") })
-                        }
+                        if (ingresos > 0) Pastilla("Ingresos ${dineroCorto(ingresos, moneda)}", null)
                     }
                 }
             }
@@ -180,36 +176,16 @@ fun PantallaResumen(
                     if (total == 0L) {
                         Text("No hay gastos en este período.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
-                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            Dona(porcionesActuales, Modifier.size(190.dp))
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("${porcionesActuales.size} ${if (porcionesActuales.size == 1) "cuenta" else "cuentas"}",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(dineroCorto(total, moneda), style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold)
-                            }
-                        }
+                        BarraSegmentada(porcionesActuales)
                         porcionesActuales.forEach { p ->
-                            val fraccion = p.monto.toFloat() / total
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Punto(p.color, 12.dp)
-                                    Text(p.nombre, Modifier.weight(1f).padding(start = 8.dp),
-                                        style = MaterialTheme.typography.bodyLarge)
-                                    Text(dinero(p.monto, moneda), fontWeight = FontWeight.SemiBold)
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    LinearProgressIndicator(
-                                        progress = { fraccion },
-                                        modifier = Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(3.dp)),
-                                        color = p.color, trackColor = p.color.copy(alpha = 0.15f),
-                                        strokeCap = StrokeCap.Round, drawStopIndicator = {},
-                                    )
-                                    Text("${Math.round(fraccion * 100)}%", Modifier.width(48.dp),
-                                        textAlign = TextAlign.End, style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Punto(p.color, 10.dp)
+                                Text(p.nombre, Modifier.weight(1f).padding(start = 12.dp),
+                                    style = MaterialTheme.typography.bodyLarge, maxLines = 1)
+                                Text("${Math.round(p.monto * 100.0 / total)}%",
+                                    Modifier.padding(end = 12.dp), style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(dinero(p.monto, moneda), fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -248,23 +224,27 @@ fun PantallaResumen(
 private fun porcionesNombres(filtro: Set<Long>, nombres: Map<Long, String>): String =
     filtro.map { if (it == 0L) "Personal" else nombres[it] ?: "" }.filter { it.isNotEmpty() }.joinToString(" + ")
 
+/** Barra horizontal dividida por cuenta: muestra la proporción de un vistazo. */
 @Composable
-private fun Dona(porciones: List<Porcion>, modifier: Modifier) {
-    val total = porciones.sumOf { it.monto }.toFloat()
-    val fondo = MaterialTheme.colorScheme.surfaceContainerHighest
-    Canvas(modifier) {
-        val grosor = size.minDimension * 0.13f
-        val lado = size.minDimension - grosor
-        val origen = Offset((size.width - lado) / 2, (size.height - lado) / 2)
-        drawArc(fondo, 0f, 360f, false, origen, Size(lado, lado), style = Stroke(grosor))
-        var angulo = -90f
-        val separacion = if (porciones.size > 1) 3f else 0f
-        porciones.forEach { p ->
-            val barrido = 360f * p.monto / total
-            drawArc(p.color, angulo + separacion / 2, (barrido - separacion).coerceAtLeast(0.5f), false,
-                origen, Size(lado, lado), style = Stroke(grosor, cap = StrokeCap.Butt))
-            angulo += barrido
-        }
+private fun BarraSegmentada(porciones: List<Porcion>) {
+    Row(
+        Modifier.fillMaxWidth().height(14.dp).clip(RoundedCornerShape(7.dp)),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        porciones.forEach { p -> Box(Modifier.weight(p.monto.toFloat()).fillMaxHeight().background(p.color)) }
+    }
+}
+
+/** Dato informativo dentro de la tarjeta principal (no es un botón). */
+@Composable
+private fun Pastilla(texto: String, icono: androidx.compose.ui.graphics.vector.ImageVector?) {
+    Row(
+        Modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.14f))
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (icono != null) Icon(icono, null, Modifier.size(16.dp).padding(end = 4.dp))
+        Text(texto, style = MaterialTheme.typography.labelMedium, maxLines = 1)
     }
 }
 

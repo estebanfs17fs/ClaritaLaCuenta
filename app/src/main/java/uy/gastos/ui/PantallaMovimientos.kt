@@ -24,7 +24,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material3.AlertDialog
@@ -44,7 +44,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -65,9 +67,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneOffset
 import kotlinx.coroutines.launch
 import uy.gastos.data.Cambios
 import uy.gastos.data.Cuenta
@@ -240,15 +244,14 @@ private fun HojaMovimiento(m: Movimiento, cuentas: List<Cuenta>, db: Db, cerrar:
                 style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold,
                 color = if (m.tipo == "ingreso") colorIngreso() else MaterialTheme.colorScheme.onSurface,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                m.tarjeta?.let { SuggestionChip(onClick = {}, label = { Text("Tarjeta •• $it") },
-                    icon = { Icon(Icons.Filled.CreditCard, null) }) }
-                SuggestionChip(onClick = {}, label = { Text(if (m.origen == "correo") "Desde el correo" else "Cargado a mano") })
-            }
-            if (!m.nombreOriginal.isNullOrBlank() || m.descripcion.isNotBlank()) {
-                Text("Nombre en el banco", style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(m.descripcion.ifBlank { m.nombreOriginal ?: "" }, style = MaterialTheme.typography.bodyLarge)
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (!m.nombreOriginal.isNullOrBlank() || m.descripcion.isNotBlank()) {
+                        Dato("Nombre en el banco", m.descripcion.ifBlank { m.nombreOriginal ?: "" })
+                    }
+                    m.tarjeta?.let { Dato("Tarjeta", "Terminada en $it") }
+                    Dato("Origen", if (m.origen == "correo") "Aviso del banco por correo" else "Cargado a mano")
+                }
             }
             HorizontalDivider(Modifier.padding(vertical = 4.dp))
             TituloSeccion("Se carga a")
@@ -289,6 +292,16 @@ private fun HojaMovimiento(m: Movimiento, cuentas: List<Cuenta>, db: Db, cerrar:
 }
 
 @Composable
+private fun Dato(etiqueta: String, valor: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(etiqueta, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(valor, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.End, modifier = Modifier.weight(1.4f))
+    }
+}
+
+@Composable
 private fun HojaNuevo(cuentas: List<Cuenta>, db: Db, cerrar: () -> Unit) {
     val ids = cuentas.map { it.id }
     var tipo by remember { mutableStateOf("ingreso") }
@@ -299,6 +312,27 @@ private fun HojaNuevo(cuentas: List<Cuenta>, db: Db, cerrar: () -> Unit) {
     var descripcion by remember { mutableStateOf("") }
     var destino by remember { mutableStateOf<Long?>(null) }
     var error by remember { mutableStateOf("") }
+    var eligiendoFecha by remember { mutableStateOf(false) }
+
+    if (eligiendoFecha) {
+        val estado = rememberDatePickerState(
+            initialSelectedDateMillis = runCatching {
+                LocalDate.parse(fecha).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+            }.getOrNull(),
+        )
+        DatePickerDialog(
+            onDismissRequest = { eligiendoFecha = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    estado.selectedDateMillis?.let {
+                        fecha = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString()
+                    }
+                    eligiendoFecha = false
+                }) { Text("Aceptar") }
+            },
+            dismissButton = { TextButton(onClick = { eligiendoFecha = false }) { Text("Cancelar") } },
+        ) { DatePicker(estado) }
+    }
 
     ModalBottomSheet(onDismissRequest = cerrar, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(
@@ -317,8 +351,10 @@ private fun HojaNuevo(cuentas: List<Cuenta>, db: Db, cerrar: () -> Unit) {
             OutlinedTextField(monto, { monto = it }, label = { Text("Monto") }, singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-            OutlinedTextField(fecha, { fecha = it }, label = { Text("Fecha (aaaa-mm-dd)") }, singleLine = true,
-                modifier = Modifier.fillMaxWidth())
+            OutlinedButton(onClick = { eligiendoFecha = true }, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Filled.CalendarMonth, null)
+                Text("  " + (runCatching { encabezadoDia(LocalDate.parse(fecha).toString()) }.getOrDefault(fecha)))
+            }
             OutlinedTextField(nombre, { nombre = it }, label = { Text("De quién o dónde (opcional)") },
                 singleLine = true, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(descripcion, { descripcion = it }, label = { Text("Descripción (opcional)") },

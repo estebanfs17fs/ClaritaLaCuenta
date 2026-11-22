@@ -36,7 +36,7 @@ import uy.gastos.sync.LectorCorreo
 
 private enum class Pestana(val titulo: String, val icono: ImageVector) {
     RESUMEN("Resumen", Icons.Filled.PieChart),
-    MOVIMIENTOS("Movimientos", Icons.Filled.ReceiptLong),
+    MOVIMIENTOS("Actividad", Icons.Filled.ReceiptLong),
     COMERCIOS("Comercios", Icons.Filled.Storefront),
     CUENTAS("Cuentas", Icons.Filled.Group),
     AJUSTES("Ajustes", Icons.Filled.Settings),

@@ -72,6 +72,7 @@ fun PantallaAjustes(modifier: Modifier) {
     var aviso by remember { mutableStateOf("") }
     var informe by remember { mutableStateOf<List<String>>(emptyList()) }
     var probando by remember { mutableStateOf(false) }
+    var avanzado by remember { mutableStateOf(false) }
     val registro = remember(version) { ajustes.registro() }
 
     fun revisarAhora() {
@@ -136,22 +137,28 @@ fun PantallaAjustes(modifier: Modifier) {
             placeholder = { Text(if (inicial.contrasena.isNotBlank()) "Guardada. Dejá vacío para no cambiarla." else "xxxx xxxx xxxx xxxx") },
             singleLine = true, visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(servidor, { servidor = it }, label = { Text("Servidor IMAP") }, singleLine = true,
-            modifier = Modifier.fillMaxWidth())
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(puerto, { puerto = it }, label = { Text("Puerto") }, singleLine = true,
-                modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-            OutlinedTextField(carpeta, { carpeta = it }, label = { Text("Carpeta") }, singleLine = true,
-                modifier = Modifier.weight(2f))
+        TextButton(onClick = { avanzado = !avanzado }) {
+            Text(if (avanzado) "Ocultar opciones avanzadas" else "Opciones avanzadas: servidor y filtros")
+        }
+        if (avanzado) {
+            OutlinedTextField(servidor, { servidor = it }, label = { Text("Servidor IMAP") }, singleLine = true,
+                modifier = Modifier.fillMaxWidth())
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(puerto, { puerto = it }, label = { Text("Puerto") }, singleLine = true,
+                    modifier = Modifier.weight(1f), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                OutlinedTextField(carpeta, { carpeta = it }, label = { Text("Carpeta") }, singleLine = true,
+                    modifier = Modifier.weight(2f))
+            }
+
+            TituloSeccion("Qué correos leer")
+            OutlinedTextField(remitente, { remitente = it }, label = { Text("El remitente contiene") }, singleLine = true,
+                modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(asunto, { asunto = it }, label = { Text("El asunto o el texto contiene") }, singleLine = true,
+                modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(desde, { desde = it }, label = { Text("Leer desde (aaaa-mm-dd, vacío = 30 días)") },
+                singleLine = true, modifier = Modifier.fillMaxWidth())
         }
 
-        TituloSeccion("Qué correos leer")
-        OutlinedTextField(remitente, { remitente = it }, label = { Text("El remitente contiene") }, singleLine = true,
-            modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(asunto, { asunto = it }, label = { Text("El asunto o el texto contiene") }, singleLine = true,
-            modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(desde, { desde = it }, label = { Text("Leer desde (aaaa-mm-dd, vacío = 30 días)") },
-            singleLine = true, modifier = Modifier.fillMaxWidth())
 
         TituloSeccion("Frecuencia")
         OutlinedTextField(intervalo, { intervalo = it }, label = { Text("Con la app abierta, revisar cada (segundos)") },
