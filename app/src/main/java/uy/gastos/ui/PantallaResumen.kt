@@ -30,6 +30,7 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -136,9 +137,9 @@ fun PantallaResumen(
             // Tarjeta principal con el total
             Card(
                 Modifier.fillMaxWidth(),
+                // En modo oscuro el primario es muy claro; se usa el contenedor para no encandilar.
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = colorHeroe(), contentColor = colorSobreHeroe(),
                 ),
                 shape = MaterialTheme.shapes.large,
             ) {
@@ -147,7 +148,7 @@ fun PantallaResumen(
                         if (filtroValido.isEmpty()) "Gastado en total"
                         else "Gastado en " + porcionesNombres(filtroValido, nombres),
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f), maxLines = 1,
+                        color = colorSobreHeroe().copy(alpha = 0.85f), maxLines = 1,
                     )
                     // Al cambiar de período el monto se desliza hacia arriba (adelante) o hacia abajo (atrás).
                     AnimatedContent(
@@ -165,7 +166,7 @@ fun PantallaResumen(
                     }
                     Text("$compras ${if (compras == 1) "compra" else "compras"}",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f))
+                        color = colorSobreHeroe().copy(alpha = 0.85f))
                     Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (anterior > 0) {
                             val cambio = ((total - anterior) * 100.0 / anterior).toInt()
@@ -175,7 +176,7 @@ fun PantallaResumen(
                                 else Icons.AutoMirrored.Filled.TrendingDown,
                             )
                         }
-                        if (ingresos > 0) Pastilla("Ingresos ${dineroCorto(ingresos, moneda)}", null)
+                        if (ingresos > 0) Pastilla("Ingresos ${dineroCorto(ingresos, moneda)}", null, acento = true)
                     }
                 }
             }
@@ -251,14 +252,17 @@ private fun BarraSegmentada(porciones: List<Porcion>) {
 
 /** Dato informativo dentro de la tarjeta principal (no es un botón). */
 @Composable
-private fun Pastilla(texto: String, icono: androidx.compose.ui.graphics.vector.ImageVector?) {
+private fun Pastilla(texto: String, icono: androidx.compose.ui.graphics.vector.ImageVector?, acento: Boolean = false) {
+    // La pastilla de acento usa el verde menta (terciario) para destacar los ingresos.
+    val fondo = if (acento) MaterialTheme.colorScheme.tertiaryContainer else colorSobreHeroe().copy(alpha = 0.14f)
+    val tinta = if (acento) MaterialTheme.colorScheme.onTertiaryContainer else LocalContentColor.current
     Row(
-        Modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.14f))
+        Modifier.clip(RoundedCornerShape(50)).background(fondo)
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (icono != null) Icon(icono, null, Modifier.size(16.dp).padding(end = 4.dp))
-        Text(texto, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+        if (icono != null) Icon(icono, null, Modifier.size(16.dp).padding(end = 4.dp), tint = tinta)
+        Text(texto, style = MaterialTheme.typography.labelMedium, maxLines = 1, color = tinta)
     }
 }
 

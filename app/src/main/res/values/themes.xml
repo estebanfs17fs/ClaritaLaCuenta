@@ -1,6 +1,8 @@
 <resources>
+    <!-- Fondo de la ventana igual al de la app, así no hay un destello al abrir. -->
     <style name="Tema" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:statusBarColor">#FFF6F7F9</item>
+        <item name="android:windowBackground">@color/fondo</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>
