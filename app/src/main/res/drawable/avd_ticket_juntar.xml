@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Las dos mitades del ticket se juntan y la cara queda completa. -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/ticket_separado">
+    <target android:name="izq">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="rotation" android:valueFrom="-8" android:valueTo="0"
+                    android:duration="300" android:startOffset="0" android:interpolator="@android:interpolator/decelerate_cubic" />
+                <objectAnimator android:propertyName="translateX" android:valueFrom="-2" android:valueTo="0"
+                    android:duration="300" android:startOffset="0" android:interpolator="@android:interpolator/decelerate_cubic" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="der">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="rotation" android:valueFrom="8" android:valueTo="0"
+                    android:duration="300" android:startOffset="0" android:interpolator="@android:interpolator/decelerate_cubic" />
+                <objectAnimator android:propertyName="translateX" android:valueFrom="2" android:valueTo="0"
+                    android:duration="300" android:startOffset="0" android:interpolator="@android:interpolator/decelerate_cubic" />
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>

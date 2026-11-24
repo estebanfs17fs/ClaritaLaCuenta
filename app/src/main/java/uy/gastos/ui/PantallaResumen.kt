@@ -116,7 +116,12 @@ fun PantallaResumen(
     Scaffold(
         modifier.nestedScroll(scroll.nestedScrollConnection),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = { TopAppBar(title = { Text("Resumen") }, scrollBehavior = scroll) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Resumen") }, scrollBehavior = scroll,
+                navigationIcon = { Box(Modifier.padding(start = 12.dp, end = 4.dp)) { LogoTicket(36.dp) } },
+            )
+        },
     ) { relleno ->
         Column(
             Modifier.padding(relleno).fillMaxSize().verticalScroll(rememberScrollState())
