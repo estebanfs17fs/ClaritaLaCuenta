@@ -9,7 +9,7 @@
             <group>
                 <clip-path android:pathData="M35,35 Q35,30 40,30 L54,30 L51.5,36 L56,43 L52,50 L56.5,57 L51.5,64 L55.5,71 L52,77 L54,83 L47.67,79 L41.33,83 L35,79 Z" />
                 <path android:fillColor="#FF000000" android:fillType="evenOdd"
-                    android:pathData="M0,0 h108 v108 h-108 Z M41.5,45 h7 a1.75,1.75 0 0 1 0,3.5 h-7 a1.75,1.75 0 0 1 0,-3.5 Z M41.5,60.2 Q54,74 66.5,60.2 Q65,57.2 63.6,58 Q54,67 44.4,58 Q43,57.2 41.5,60.2 Z" />
+                    android:pathData="M0,0 h108 v108 h-108 Z M41.5,45 h7 a1.75,1.75 0 0 1 0,3.5 h-7 a1.75,1.75 0 0 1 0,-3.5 Z M43,57.75 h22 a1.75,1.75 0 0 1 0,3.5 h-22 a1.75,1.75 0 0 1 0,-3.5 Z" />
             </group>
         </group>
         <group android:name="der" android:pivotX="54" android:pivotY="83"
@@ -17,7 +17,7 @@
             <group>
                 <clip-path android:pathData="M54,30 L68,30 Q73,30 73,35 L73,79 L66.67,83 L60.33,79 L54,83 L52,77 L55.5,71 L51.5,64 L56.5,57 L52,50 L56,43 L51.5,36 L54,30 Z" />
                 <path android:fillColor="#FF000000" android:fillType="evenOdd"
-                    android:pathData="M0,0 h108 v108 h-108 Z M59.5,45 h7 a1.75,1.75 0 0 1 0,3.5 h-7 a1.75,1.75 0 0 1 0,-3.5 Z M41.5,60.2 Q54,74 66.5,60.2 Q65,57.2 63.6,58 Q54,67 44.4,58 Q43,57.2 41.5,60.2 Z" />
+                    android:pathData="M0,0 h108 v108 h-108 Z M59.5,45 h7 a1.75,1.75 0 0 1 0,3.5 h-7 a1.75,1.75 0 0 1 0,-3.5 Z M43,57.75 h22 a1.75,1.75 0 0 1 0,3.5 h-22 a1.75,1.75 0 0 1 0,-3.5 Z" />
             </group>
         </group>
     </group>
