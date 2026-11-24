@@ -1,9 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ticket roto con cara: las dos mitades de la cuenta compartida. Tres renglones: largo, corto y largo. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <!-- Torta dividida: gasto compartido -->
-    <path android:fillColor="#FFFFFF"
-        android:pathData="M54,32 A22,22 0 1,1 32,54 L54,54 Z" />
-    <path android:fillColor="#FFFFD2A8"
-        android:pathData="M50,28 L50,50 L28,50 A22,22 0 0,1 50,28 Z" />
+    <group android:pivotX="54" android:pivotY="56" android:scaleX="0.86" android:scaleY="0.86">
+        <group android:name="izq" android:pivotX="54" android:pivotY="83"
+            android:rotation="-8" android:translateX="-2">
+            <path android:fillColor="#FFFFFFFF" android:pathData="M35,35 Q35,30 40,30 L54,30 L51.5,36 L56,43 L52,50 L56.5,57 L51.5,64 L55.5,71 L52,77 L54,83 L47.67,79 L41.33,83 L35,79 Z" />
+            <group>
+                <clip-path android:pathData="M35,35 Q35,30 40,30 L54,30 L51.5,36 L56,43 L52,50 L56.5,57 L51.5,64 L55.5,71 L52,77 L54,83 L47.67,79 L41.33,83 L35,79 Z" />
+                <path android:fillColor="#FF56206A" android:pathData="M41.5,40 h25 a1.75,1.75 0 0 1 0,3.5 h-25 a1.75,1.75 0 0 1 0,-3.5 Z M41.5,64 h25 a1.75,1.75 0 0 1 0,3.5 h-25 a1.75,1.75 0 0 1 0,-3.5 Z" />
+                <path android:strokeColor="#FF56206A" android:strokeWidth="3.5" android:strokeLineCap="round"
+                    android:pathData="M48,53.75 L60,53.75" />
+            </group>
+        </group>
+        <group android:name="der" android:pivotX="54" android:pivotY="83"
+            android:rotation="8" android:translateX="2">
+            <path android:fillColor="#FF6EE0C0" android:pathData="M54,30 L68,30 Q73,30 73,35 L73,79 L66.67,83 L60.33,79 L54,83 L52,77 L55.5,71 L51.5,64 L56.5,57 L52,50 L56,43 L51.5,36 L54,30 Z" />
+            <group>
+                <clip-path android:pathData="M54,30 L68,30 Q73,30 73,35 L73,79 L66.67,83 L60.33,79 L54,83 L52,77 L55.5,71 L51.5,64 L56.5,57 L52,50 L56,43 L51.5,36 L54,30 Z" />
+                <path android:fillColor="#FF56206A" android:pathData="M41.5,40 h25 a1.75,1.75 0 0 1 0,3.5 h-25 a1.75,1.75 0 0 1 0,-3.5 Z M41.5,64 h25 a1.75,1.75 0 0 1 0,3.5 h-25 a1.75,1.75 0 0 1 0,-3.5 Z" />
+                <path android:strokeColor="#FF56206A" android:strokeWidth="3.5" android:strokeLineCap="round"
+                    android:pathData="M48,53.75 L60,53.75" />
+            </group>
+        </group>
+    </group>
 </vector>

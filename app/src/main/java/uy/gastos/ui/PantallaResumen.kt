@@ -2,6 +2,7 @@
 
 package uy.gastos.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +30,7 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -109,11 +111,17 @@ fun PantallaResumen(
         .map { (nombre, ms) -> Triple(nombre, ms.sumOf { it.montoCentavos }, ms.first().cuentaEfectiva) }
         .sortedByDescending { it.second }.take(5)
 
+    val reducido = movimientoReducido()
     val scroll = TopAppBarDefaults.enterAlwaysScrollBehavior()
     Scaffold(
         modifier.nestedScroll(scroll.nestedScrollConnection),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = { TopAppBar(title = { Text("Resumen") }, scrollBehavior = scroll) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Resumen") }, scrollBehavior = scroll,
+                navigationIcon = { Box(Modifier.padding(start = 12.dp, end = 4.dp)) { LogoTicket(36.dp) } },
+            )
+        },
     ) { relleno ->
         Column(
             Modifier.padding(relleno).fillMaxSize().verticalScroll(rememberScrollState())
@@ -134,9 +142,9 @@ fun PantallaResumen(
             // Tarjeta principal con el total
             Card(
                 Modifier.fillMaxWidth(),
+                // En modo oscuro el primario es muy claro; se usa el contenedor para no encandilar.
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = colorHeroe(), contentColor = colorSobreHeroe(),
                 ),
                 shape = MaterialTheme.shapes.large,
             ) {
@@ -145,17 +153,25 @@ fun PantallaResumen(
                         if (filtroValido.isEmpty()) "Gastado en total"
                         else "Gastado en " + porcionesNombres(filtroValido, nombres),
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f), maxLines = 1,
+                        color = colorSobreHeroe().copy(alpha = 0.85f), maxLines = 1,
                     )
-                    val texto = dinero(total, moneda)
-                    Text(
-                        texto, maxLines = 1, fontWeight = FontWeight.SemiBold,
-                        style = if (texto.length > 13) MaterialTheme.typography.headlineLarge
-                        else MaterialTheme.typography.displaySmall,
-                    )
+                    // Al cambiar de período el monto se desliza hacia arriba (adelante) o hacia abajo (atrás).
+                    AnimatedContent(
+                        targetState = actual.inicio to dinero(total, moneda),
+                        transitionSpec = {
+                            ejeVertical(targetState.first.compareTo(initialState.first).coerceIn(-1, 1), reducido)
+                        },
+                        label = "total",
+                    ) { (_, texto) ->
+                        Text(
+                            texto, maxLines = 1, fontWeight = FontWeight.SemiBold,
+                            style = if (texto.length > 13) MaterialTheme.typography.headlineLarge
+                            else MaterialTheme.typography.displaySmall,
+                        )
+                    }
                     Text("$compras ${if (compras == 1) "compra" else "compras"}",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f))
+                        color = colorSobreHeroe().copy(alpha = 0.85f))
                     Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (anterior > 0) {
                             val cambio = ((total - anterior) * 100.0 / anterior).toInt()
@@ -165,7 +181,7 @@ fun PantallaResumen(
                                 else Icons.AutoMirrored.Filled.TrendingDown,
                             )
                         }
-                        if (ingresos > 0) Pastilla("Ingresos ${dineroCorto(ingresos, moneda)}", null)
+                        if (ingresos > 0) Pastilla("Ingresos ${dineroCorto(ingresos, moneda)}", null, acento = true)
                     }
                 }
             }
@@ -231,20 +247,27 @@ private fun BarraSegmentada(porciones: List<Porcion>) {
         Modifier.fillMaxWidth().height(14.dp).clip(RoundedCornerShape(7.dp)),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        porciones.forEach { p -> Box(Modifier.weight(p.monto.toFloat()).fillMaxHeight().background(p.color)) }
+        porciones.forEach { p ->
+            // Cada tramo crece hasta su proporción (las proporciones cambian al cambiar de período).
+            val peso = crecerDesdeCero(p.monto.toFloat())
+            Box(Modifier.weight(peso.coerceAtLeast(0.0001f)).fillMaxHeight().background(p.color))
+        }
     }
 }
 
 /** Dato informativo dentro de la tarjeta principal (no es un botón). */
 @Composable
-private fun Pastilla(texto: String, icono: androidx.compose.ui.graphics.vector.ImageVector?) {
+private fun Pastilla(texto: String, icono: androidx.compose.ui.graphics.vector.ImageVector?, acento: Boolean = false) {
+    // La pastilla de acento usa el verde menta (terciario) para destacar los ingresos.
+    val fondo = if (acento) MaterialTheme.colorScheme.tertiaryContainer else colorSobreHeroe().copy(alpha = 0.14f)
+    val tinta = if (acento) MaterialTheme.colorScheme.onTertiaryContainer else LocalContentColor.current
     Row(
-        Modifier.clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.14f))
+        Modifier.clip(RoundedCornerShape(50)).background(fondo)
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (icono != null) Icon(icono, null, Modifier.size(16.dp).padding(end = 4.dp))
-        Text(texto, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+        if (icono != null) Icon(icono, null, Modifier.size(16.dp).padding(end = 4.dp), tint = tinta)
+        Text(texto, style = MaterialTheme.typography.labelMedium, maxLines = 1, color = tinta)
     }
 }
 
@@ -271,8 +294,8 @@ private fun Barras(barras: List<Barra>, actual: Rango, moneda: String, alTocar: 
                         .clickable { alTocar(b.rango) },
                     verticalArrangement = Arrangement.Bottom,
                 ) {
-                    val fraccion = b.total.toFloat() / maximo
-                    if (fraccion > 0f) {
+                    val fraccion = crecerDesdeCero(b.total.toFloat() / maximo)
+                    if (fraccion > 0.001f) {
                         Column(
                             Modifier.fillMaxWidth().fillMaxHeight(fraccion.coerceAtLeast(0.03f))
                                 .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 2.dp, bottomEnd = 2.dp)),
@@ -291,7 +314,7 @@ private fun Barras(barras: List<Barra>, actual: Rango, moneda: String, alTocar: 
                 val sel = b.rango == actual
                 Text(b.etiqueta, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
                     textAlign = TextAlign.Center, maxLines = 1,
-                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
+                    fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal,
                     color = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

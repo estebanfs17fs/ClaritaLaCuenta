@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -127,12 +128,22 @@ private fun App() {
     ) { relleno ->
         val m = Modifier.padding(relleno)
         val fecha = LocalDate.parse(ancla)
-        when (pestana) {
-            Pestana.RESUMEN -> PantallaResumen(m, periodo, fecha, alCambiarPeriodo, filtro, alCambiarFiltro)
-            Pestana.MOVIMIENTOS -> PantallaMovimientos(m, periodo, fecha, alCambiarPeriodo, filtro, alCambiarFiltro)
-            Pestana.COMERCIOS -> PantallaComercios(m)
-            Pestana.CUENTAS -> PantallaCuentas(m)
-            Pestana.AJUSTES -> PantallaAjustes(m)
+        val reducido = movimientoReducido()
+        // Al cambiar de pestaña, la pantalla nueva entra desde el lado de la pestaña tocada.
+        AnimatedContent(
+            targetState = pestana,
+            transitionSpec = {
+                ejeHorizontal(if (targetState.ordinal > initialState.ordinal) 1 else -1, reducido)
+            },
+            label = "pestana",
+        ) { p ->
+            when (p) {
+                Pestana.RESUMEN -> PantallaResumen(m, periodo, fecha, alCambiarPeriodo, filtro, alCambiarFiltro)
+                Pestana.MOVIMIENTOS -> PantallaMovimientos(m, periodo, fecha, alCambiarPeriodo, filtro, alCambiarFiltro)
+                Pestana.COMERCIOS -> PantallaComercios(m)
+                Pestana.CUENTAS -> PantallaCuentas(m)
+                Pestana.AJUSTES -> PantallaAjustes(m)
+            }
         }
     }
 }

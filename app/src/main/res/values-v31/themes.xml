@@ -1,0 +1,12 @@
+<resources>
+    <!-- Android 12 o más: pantalla de inicio con el ticket que se junta. -->
+    <style name="Tema" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/fondo</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowSplashScreenBackground">@color/fondo</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/ciruela</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/avd_ticket_inicio</item>
+        <item name="android:windowSplashScreenAnimationDuration">450</item>
+    </style>
+</resources>
