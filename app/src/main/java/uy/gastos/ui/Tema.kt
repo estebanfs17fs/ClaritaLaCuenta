@@ -80,7 +80,9 @@ object Paleta {
 fun Tema(contenido: @Composable () -> Unit) {
     val oscuro = isSystemInDarkTheme()
     Paleta.oscura = oscuro
-    MaterialTheme(colorScheme = if (oscuro) Oscuro else Claro, shapes = Formas, content = contenido)
+    MaterialTheme(
+        colorScheme = if (oscuro) Oscuro else Claro, typography = Tipografia, shapes = Formas, content = contenido,
+    )
 }
 
 /** Verde para ingresos, legible en claro y oscuro. */

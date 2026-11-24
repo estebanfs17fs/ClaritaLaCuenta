@@ -176,12 +176,12 @@ private fun ResumenTotales(movs: List<Movimiento>) {
         Row(Modifier.padding(16.dp)) {
             Column(Modifier.weight(1f)) {
                 Text("Gastos", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(dinero(gasto, "UYU"), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(dinero(gasto, "UYU"), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 if (gastoUsd > 0) Text(dinero(gastoUsd, "USD"), style = MaterialTheme.typography.bodyMedium)
             }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
                 Text("Ingresos", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(dinero(ingreso, "UYU"), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                Text(dinero(ingreso, "UYU"), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold,
                     color = colorIngreso())
             }
         }
@@ -248,7 +248,7 @@ private fun HojaMovimiento(m: Movimiento, cuentas: List<Cuenta>, db: Db, cerrar:
             }
             Text(
                 (if (m.tipo == "ingreso") "+ " else "") + dinero(m.montoCentavos, m.moneda),
-                style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold,
                 color = if (m.tipo == "ingreso") colorIngreso() else MaterialTheme.colorScheme.onSurface,
             )
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {

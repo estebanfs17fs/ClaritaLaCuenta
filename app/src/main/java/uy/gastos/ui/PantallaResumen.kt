@@ -2,6 +2,7 @@
 
 package uy.gastos.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -109,6 +110,7 @@ fun PantallaResumen(
         .map { (nombre, ms) -> Triple(nombre, ms.sumOf { it.montoCentavos }, ms.first().cuentaEfectiva) }
         .sortedByDescending { it.second }.take(5)
 
+    val reducido = movimientoReducido()
     val scroll = TopAppBarDefaults.enterAlwaysScrollBehavior()
     Scaffold(
         modifier.nestedScroll(scroll.nestedScrollConnection),
@@ -147,12 +149,20 @@ fun PantallaResumen(
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f), maxLines = 1,
                     )
-                    val texto = dinero(total, moneda)
-                    Text(
-                        texto, maxLines = 1, fontWeight = FontWeight.SemiBold,
-                        style = if (texto.length > 13) MaterialTheme.typography.headlineLarge
-                        else MaterialTheme.typography.displaySmall,
-                    )
+                    // Al cambiar de período el monto se desliza hacia arriba (adelante) o hacia abajo (atrás).
+                    AnimatedContent(
+                        targetState = actual.inicio to dinero(total, moneda),
+                        transitionSpec = {
+                            ejeVertical(targetState.first.compareTo(initialState.first).coerceIn(-1, 1), reducido)
+                        },
+                        label = "total",
+                    ) { (_, texto) ->
+                        Text(
+                            texto, maxLines = 1, fontWeight = FontWeight.SemiBold,
+                            style = if (texto.length > 13) MaterialTheme.typography.headlineLarge
+                            else MaterialTheme.typography.displaySmall,
+                        )
+                    }
                     Text("$compras ${if (compras == 1) "compra" else "compras"}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f))
@@ -231,7 +241,11 @@ private fun BarraSegmentada(porciones: List<Porcion>) {
         Modifier.fillMaxWidth().height(14.dp).clip(RoundedCornerShape(7.dp)),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        porciones.forEach { p -> Box(Modifier.weight(p.monto.toFloat()).fillMaxHeight().background(p.color)) }
+        porciones.forEach { p ->
+            // Cada tramo crece hasta su proporción (las proporciones cambian al cambiar de período).
+            val peso = crecerDesdeCero(p.monto.toFloat())
+            Box(Modifier.weight(peso.coerceAtLeast(0.0001f)).fillMaxHeight().background(p.color))
+        }
     }
 }
 
@@ -271,8 +285,8 @@ private fun Barras(barras: List<Barra>, actual: Rango, moneda: String, alTocar: 
                         .clickable { alTocar(b.rango) },
                     verticalArrangement = Arrangement.Bottom,
                 ) {
-                    val fraccion = b.total.toFloat() / maximo
-                    if (fraccion > 0f) {
+                    val fraccion = crecerDesdeCero(b.total.toFloat() / maximo)
+                    if (fraccion > 0.001f) {
                         Column(
                             Modifier.fillMaxWidth().fillMaxHeight(fraccion.coerceAtLeast(0.03f))
                                 .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 2.dp, bottomEnd = 2.dp)),
@@ -291,7 +305,7 @@ private fun Barras(barras: List<Barra>, actual: Rango, moneda: String, alTocar: 
                 val sel = b.rango == actual
                 Text(b.etiqueta, Modifier.weight(1f), style = MaterialTheme.typography.labelSmall,
                     textAlign = TextAlign.Center, maxLines = 1,
-                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
+                    fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Normal,
                     color = if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

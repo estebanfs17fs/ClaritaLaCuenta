@@ -118,7 +118,7 @@ fun Avatar(nombre: String, color: Color, tamano: Dp = 40.dp) {
         Modifier.size(tamano).clip(CircleShape).background(color.copy(alpha = 0.18f)),
         contentAlignment = Alignment.Center,
     ) {
-        Text(inicial(nombre), color = color, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+        Text(inicial(nombre), color = color, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
     }
 }
 
