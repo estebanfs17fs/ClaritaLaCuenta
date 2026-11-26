@@ -2,6 +2,8 @@
 
 package uy.gastos.ui
 
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -102,7 +104,10 @@ fun PantallaComercios(modifier: Modifier) {
                 Column(Modifier.fillMaxWidth().padding(48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Filled.Storefront, null, tint = MaterialTheme.colorScheme.outline)
                     Text("Los comercios aparecen acá a medida que llegan los correos.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                    Button(onClick = { Navegacion.pantalla.value = "ajustes" }, Modifier.padding(top = 12.dp)) {
+                        Text("Configurar el correo")
+                    }
                 }
             }
             items(visibles, key = { it.id }) { c ->
@@ -111,7 +116,7 @@ fun PantallaComercios(modifier: Modifier) {
                 ListItem(
                     modifier = Modifier.clickable { editando = c },
                     leadingContent = { Avatar(c.nombreMostrado, colorCuenta(c.cuentaId, ids)) },
-                    headlineContent = { Text(c.nombreMostrado, fontWeight = FontWeight.Medium) },
+                    headlineContent = { Text(c.nombreMostrado, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis) },
                     overlineContent = if (tieneAlias) { { Text(c.nombreOriginal) } } else null,
                     supportingContent = {
                         Text("$destino · ${c.cantidad} ${if (c.cantidad == 1) "compra" else "compras"}" +
