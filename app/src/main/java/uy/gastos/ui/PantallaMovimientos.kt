@@ -3,6 +3,12 @@
 package uy.gastos.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -110,7 +116,7 @@ fun PantallaMovimientos(
     Scaffold(
         modifier.nestedScroll(scroll.nestedScrollConnection),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = { TopAppBar(title = { Text("Movimientos") }, scrollBehavior = scroll) },
+        topBar = { TopAppBar(title = { Text("Actividad") }, scrollBehavior = scroll) },
         snackbarHost = { SnackbarHost(snackbar) },
         floatingActionButton = {
             ExtendedFloatingActionButton(
@@ -134,6 +140,13 @@ fun PantallaMovimientos(
                         tint = MaterialTheme.colorScheme.outline)
                     Text("No hay movimientos en este período.", textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // Un estado vacío ofrece el siguiente paso en lugar de dejarte sin salida.
+                    Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { alCambiar(periodo, mover(periodo, ancla, -1)) }) {
+                            Text("Ver período anterior")
+                        }
+                        Button(onClick = { agregando = true }) { Text("Agregar") }
+                    }
                 }
             }
             porDia.forEach { (dia, lista) ->
@@ -196,7 +209,9 @@ private fun FilaMovimiento(m: Movimiento, cuentas: List<Cuenta>, ids: List<Long>
     ListItem(
         modifier = Modifier.clickable(onClick = alTocar),
         leadingContent = { Avatar(m.nombreMostrado, color) },
-        headlineContent = { Text(m.nombreMostrado, fontWeight = FontWeight.Medium, maxLines = 1) },
+        headlineContent = {
+            Text(m.nombreMostrado, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        },
         supportingContent = {
             val partes = buildList {
                 if (tieneAlias) add(m.nombreOriginal ?: "")
@@ -268,9 +283,14 @@ private fun HojaMovimiento(m: Movimiento, cuentas: List<Cuenta>, db: Db, cerrar:
             OpcionRadio("Personal", destino == 0L, colorCuenta(null, ids)) { destino = 0L }
             cuentas.forEach { c -> OpcionRadio(c.nombre, destino == c.id, colorCuenta(c.id, ids)) { destino = c.id } }
             Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = { confirmarBorrado = true }, modifier = Modifier.weight(1f)) {
+                // Acción destructiva: ícono, texto y borde en el color de error.
+                OutlinedButton(
+                    onClick = { confirmarBorrado = true }, modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                ) {
                     Icon(Icons.Filled.DeleteOutline, null)
-                    Text(" Eliminar", color = MaterialTheme.colorScheme.error)
+                    Text(" Eliminar")
                 }
                 Button(onClick = { db.asignarMovimiento(m.id, destino); cerrar() }, modifier = Modifier.weight(1f)) {
                     Text("Guardar")
@@ -311,14 +331,23 @@ private fun Dato(etiqueta: String, valor: String) {
 @Composable
 private fun HojaNuevo(cuentas: List<Cuenta>, db: Db, cerrar: () -> Unit) {
     val ids = cuentas.map { it.id }
-    var tipo by remember { mutableStateOf("ingreso") }
+    var tipo by remember { mutableStateOf("egreso") }
     var fecha by remember { mutableStateOf(LocalDate.now().toString()) }
     var monto by remember { mutableStateOf("") }
     var moneda by remember { mutableStateOf("UYU") }
     var nombre by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }
     var destino by remember { mutableStateOf<Long?>(null) }
-    var error by remember { mutableStateOf("") }
+    // El error del monto se muestra recién cuando salís del campo o intentás guardar, no mientras escribís.
+    var montoTocado by remember { mutableStateOf(false) }
+    var montoEnfocado by remember { mutableStateOf(false) }
+    val centavos = centavosDesdeTexto(monto)
+    val errorMonto = when {
+        monto.isBlank() -> "Escribí el monto."
+        centavos == null || centavos <= 0 -> "Escribí un monto válido, por ejemplo 1500 o 1.500,50."
+        else -> null
+    }
+    val mostrarErrorMonto = montoTocado && errorMonto != null
     var eligiendoFecha by remember { mutableStateOf(false) }
 
     if (eligiendoFecha) {
@@ -349,15 +378,25 @@ private fun HojaNuevo(cuentas: List<Cuenta>, db: Db, cerrar: () -> Unit) {
         ) {
             Text("Nuevo movimiento", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(tipo == "ingreso", { tipo = "ingreso" }, { Text("Ingreso") })
                 FilterChip(tipo == "egreso", { tipo = "egreso" }, { Text("Gasto") })
+                FilterChip(tipo == "ingreso", { tipo = "ingreso" }, { Text("Ingreso") })
                 Spacer(Modifier.weight(1f))
                 FilterChip(moneda == "UYU", { moneda = "UYU" }, { Text("$") })
                 FilterChip(moneda == "USD", { moneda = "USD" }, { Text("U\$S") })
             }
-            OutlinedTextField(monto, { monto = it }, label = { Text("Monto") }, singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+            OutlinedTextField(
+                monto, { monto = it }, label = { Text("Monto") }, singleLine = true,
+                isError = mostrarErrorMonto,
+                supportingText = if (mostrarErrorMonto) { { Text(errorMonto!!) } } else null,
+                modifier = Modifier.fillMaxWidth()
+                    .onFocusChanged { f ->
+                        if (montoEnfocado && !f.isFocused) montoTocado = true
+                        montoEnfocado = f.isFocused
+                    }
+                    // El lector de pantalla anuncia el error junto con el campo.
+                    .semantics { if (mostrarErrorMonto) error(errorMonto!!) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            )
             OutlinedButton(onClick = { eligiendoFecha = true }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Filled.CalendarMonth, null)
                 Text("  " + (runCatching { encabezadoDia(LocalDate.parse(fecha).toString()) }.getOrDefault(fecha)))
@@ -369,13 +408,11 @@ private fun HojaNuevo(cuentas: List<Cuenta>, db: Db, cerrar: () -> Unit) {
             TituloSeccion("Se carga a")
             OpcionRadio("Personal", destino == null, colorCuenta(null, ids)) { destino = null }
             cuentas.forEach { c -> OpcionRadio(c.nombre, destino == c.id, colorCuenta(c.id, ids)) { destino = c.id } }
-            if (error.isNotEmpty()) Text(error, color = MaterialTheme.colorScheme.error)
             Button(
                 onClick = {
-                    val centavos = centavosDesdeTexto(monto)
-                    val dia = runCatching { LocalDate.parse(fecha.trim()) }.getOrNull()
-                    if (centavos == null || centavos <= 0 || dia == null) {
-                        error = "Revisá el monto y la fecha."
+                    val dia = runCatching { LocalDate.parse(fecha.trim()) }.getOrNull() ?: LocalDate.now()
+                    if (errorMonto != null || centavos == null) {
+                        montoTocado = true
                     } else {
                         val h = if (dia == LocalDate.now()) LocalTime.now() else LocalTime.NOON
                         db.agregarManual(LocalDateTime.of(dia, h).toString().take(16), tipo, nombre, descripcion,
@@ -384,7 +421,7 @@ private fun HojaNuevo(cuentas: List<Cuenta>, db: Db, cerrar: () -> Unit) {
                     }
                 },
                 modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-            ) { Text("Guardar") }
+            ) { Text(if (tipo == "ingreso") "Guardar ingreso" else "Guardar gasto") }
             Box(Modifier.height(8.dp))
         }
     }

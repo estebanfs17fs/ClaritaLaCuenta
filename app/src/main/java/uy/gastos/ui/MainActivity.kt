@@ -1,5 +1,10 @@
 package uy.gastos.ui
 
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Group
+import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.PieChart
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -39,12 +44,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import uy.gastos.sync.Notificaciones
 import uy.gastos.sync.ServicioCorreo
 
-private enum class Pestana(val titulo: String, val icono: ImageVector) {
-    RESUMEN("Resumen", Icons.Filled.PieChart),
-    MOVIMIENTOS("Actividad", Icons.Filled.ReceiptLong),
-    COMERCIOS("Comercios", Icons.Filled.Storefront),
-    CUENTAS("Cuentas", Icons.Filled.Group),
-    AJUSTES("Ajustes", Icons.Filled.Settings),
+/** Ícono lleno para la pestaña activa y de contorno para las demás, como pide Material 3. */
+private enum class Pestana(val titulo: String, val icono: ImageVector, val iconoInactivo: ImageVector) {
+    RESUMEN("Resumen", Icons.Filled.PieChart, Icons.Outlined.PieChart),
+    MOVIMIENTOS("Actividad", Icons.Filled.ReceiptLong, Icons.Outlined.ReceiptLong),
+    COMERCIOS("Comercios", Icons.Filled.Storefront, Icons.Outlined.Storefront),
+    CUENTAS("Cuentas", Icons.Filled.Group, Icons.Outlined.Group),
+    AJUSTES("Ajustes", Icons.Filled.Settings, Icons.Outlined.Settings),
 }
 
 /** Pedidos de navegación que llegan desde las notificaciones. */
@@ -119,7 +125,7 @@ private fun App() {
                 Pestana.entries.forEach { p ->
                     NavigationBarItem(
                         selected = p == pestana, onClick = { pestana = p },
-                        icon = { Icon(p.icono, contentDescription = null) },
+                        icon = { Icon(if (p == pestana) p.icono else p.iconoInactivo, contentDescription = null) },
                         label = { Text(p.titulo, maxLines = 1) },
                     )
                 }

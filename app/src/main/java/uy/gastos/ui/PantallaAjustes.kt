@@ -3,6 +3,19 @@
 package uy.gastos.ui
 
 import android.content.Intent
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.rememberDatePickerState
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -81,6 +94,9 @@ fun PantallaAjustes(modifier: Modifier) {
     var informe by remember { mutableStateOf<List<String>>(emptyList()) }
     var probando by remember { mutableStateOf(false) }
     var avanzado by remember { mutableStateOf(false) }
+    var eligiendoDesde by remember { mutableStateOf(false) }
+    // Lo técnico queda plegado; se abre solo si hay correos que no se pudieron leer.
+    var diagnostico by remember { mutableStateOf(noReconocidos.isNotEmpty()) }
     val registro = remember(version) { ajustes.registro() }
 
     fun revisarAhora() {
@@ -109,7 +125,7 @@ fun PantallaAjustes(modifier: Modifier) {
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Estado", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text("Última revisión: ${estado.ultimaRevision.ifBlank { "todavía no" }}")
+                Text("Última revisión: ${momentoLegible(estado.ultimaRevision)}")
                 Text("Consumos nuevos en la última revisión: ${estado.nuevosUltimaVez}")
                 Text("Correos leídos en total: $leidos")
                 if (estado.ultimoError.isNotBlank()) {
@@ -163,8 +179,17 @@ fun PantallaAjustes(modifier: Modifier) {
                 modifier = Modifier.fillMaxWidth())
             OutlinedTextField(asunto, { asunto = it }, label = { Text("El asunto o el texto contiene") }, singleLine = true,
                 modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(desde, { desde = it }, label = { Text("Leer desde (aaaa-mm-dd, vacío = 30 días)") },
-                singleLine = true, modifier = Modifier.fillMaxWidth())
+            // Fecha con selector en lugar de escribirla a mano en formato aaaa-mm-dd.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = { eligiendoDesde = true }, Modifier.weight(1f)) {
+                    Icon(Icons.Filled.CalendarMonth, null)
+                    Text("  " + (runCatching { "Leer desde el " + encabezadoDia(LocalDate.parse(desde).toString()).lowercase() }
+                        .getOrDefault("Leer los últimos 30 días")))
+                }
+                if (desde.isNotBlank()) {
+                    IconButton(onClick = { desde = "" }) { Icon(Icons.Filled.Clear, "Volver a los últimos 30 días") }
+                }
+            }
         }
 
 
@@ -177,9 +202,17 @@ fun PantallaAjustes(modifier: Modifier) {
             }
             Switch(checked = activado, onCheckedChange = { activado = it })
         }
-        OutlinedTextField(intervalo, { intervalo = it }, label = { Text("Revisar cada (segundos)") },
-            singleLine = true, modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+        // Frecuencia con opciones fijas en minutos en lugar de un número de segundos.
+        Text("Revisar cada", style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val opciones = listOf(60 to "1 min", 300 to "5 min", 900 to "15 min", 1800 to "30 min")
+        val segundos = intervalo.toIntOrNull() ?: 60
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            opciones.forEach { (valor, texto) ->
+                FilterChip(selected = segundos == valor, onClick = { intervalo = valor.toString() },
+                    label = { Text(texto) }, enabled = activado)
+            }
+        }
         PermisosSegundoPlano(version = version)
 
         Button(
@@ -203,6 +236,14 @@ fun PantallaAjustes(modifier: Modifier) {
             modifier = Modifier.fillMaxWidth(),
         ) { Text("Guardar y revisar") }
 
+        HorizontalDivider(Modifier.padding(vertical = 8.dp))
+        TextButton(onClick = { diagnostico = !diagnostico }) {
+            Text(
+                (if (diagnostico) "Ocultar diagnóstico" else "Ver diagnóstico") +
+                    if (noReconocidos.isNotEmpty()) " (${noReconocidos.size} correos sin leer)" else ""
+            )
+        }
+        if (diagnostico) {
         OutlinedButton(onClick = { db.olvidarNoReconocidos(); revisarAhora() }, modifier = Modifier.fillMaxWidth()) {
             Text("Volver a leer los correos descartados")
         }
@@ -235,7 +276,43 @@ fun PantallaAjustes(modifier: Modifier) {
                 }
             }
         }
+        }
     }
+    }
+
+    if (eligiendoDesde) {
+        val estadoFecha = rememberDatePickerState(
+            initialSelectedDateMillis = runCatching {
+                LocalDate.parse(desde).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+            }.getOrNull(),
+        )
+        DatePickerDialog(
+            onDismissRequest = { eligiendoDesde = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    estadoFecha.selectedDateMillis?.let {
+                        desde = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate().toString()
+                    }
+                    eligiendoDesde = false
+                }) { Text("Elegir") }
+            },
+            dismissButton = { TextButton(onClick = { eligiendoDesde = false }) { Text("Cancelar") } },
+        ) { DatePicker(estadoFecha) }
+    }
+}
+
+/** "26/11 16:20:05" -> "hoy a las 16:20", "ayer a las 9:05" o "24/11 a las 16:20". */
+private fun momentoLegible(texto: String): String {
+    if (texto.isBlank()) return "todavía no"
+    val m = Regex("""(\d{2})/(\d{2}) (\d{2}):(\d{2})""").find(texto) ?: return texto
+    val (d, mes, h, min) = m.destructured
+    val hoy = LocalDate.now()
+    val dia = runCatching { LocalDate.of(hoy.year, mes.toInt(), d.toInt()) }.getOrNull() ?: return texto
+    val horaTexto = "${h.toInt()}:$min"
+    return when (dia) {
+        hoy -> "hoy a las $horaTexto"
+        hoy.minusDays(1) -> "ayer a las $horaTexto"
+        else -> "$d/$mes a las $horaTexto"
     }
 }
 

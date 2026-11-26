@@ -1,5 +1,7 @@
 package uy.gastos.ui
 
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Box
 import androidx.compose.animation.graphics.ExperimentalAnimationGraphicsApi
 import androidx.compose.animation.graphics.res.animatedVectorResource
 import androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter
@@ -47,9 +49,15 @@ fun LogoTicket(tamano: Dp = 40.dp) {
         delay(900)
         junto = false
     }
-    Image(
-        painter = rememberAnimatedVectorPainter(imagen, atEnd = junto),
-        contentDescription = "Gastos",
-        modifier = Modifier.size(tamano).clip(CircleShape).background(FondoLogo).clickable { toques++ },
-    )
+    // Área táctil de 48 dp (mínimo de Android) aunque el dibujo sea más chico.
+    Box(
+        Modifier.size(maxOf(tamano, 48.dp)).clip(CircleShape).clickable(onClickLabel = "Animar el logo") { toques++ },
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = rememberAnimatedVectorPainter(imagen, atEnd = junto),
+            contentDescription = "Gastos",
+            modifier = Modifier.size(tamano).clip(CircleShape).background(FondoLogo),
+        )
+    }
 }

@@ -119,7 +119,7 @@ fun PantallaResumen(
         topBar = {
             TopAppBar(
                 title = { Text("Resumen") }, scrollBehavior = scroll,
-                navigationIcon = { Box(Modifier.padding(start = 12.dp, end = 4.dp)) { LogoTicket(36.dp) } },
+                navigationIcon = { Box(Modifier.padding(start = 4.dp)) { LogoTicket(36.dp) } },
             )
         },
     ) { relleno ->

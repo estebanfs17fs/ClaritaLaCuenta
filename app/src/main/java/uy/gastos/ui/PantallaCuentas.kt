@@ -77,7 +77,8 @@ fun PantallaCuentas(modifier: Modifier) {
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             item {
-                TarjetaCuenta("Personal", "Todo lo que no es compartido", colorCuenta(null, ids), gastosMes[null] ?: 0L) {}
+                // Personal no se edita: la tarjeta es informativa y no reacciona al toque.
+                TarjetaCuenta("Personal", "Todo lo que no es compartido", colorCuenta(null, ids), gastosMes[null] ?: 0L, null)
             }
             if (cuentas.isEmpty()) item {
                 Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -96,12 +97,15 @@ fun PantallaCuentas(modifier: Modifier) {
 
 @Composable
 private fun TarjetaCuenta(nombre: String, descripcion: String, color: androidx.compose.ui.graphics.Color,
-                          gastoMes: Long, alTocar: () -> Unit) {
-    ElevatedCard(Modifier.fillMaxWidth().clickable(onClick = alTocar)) {
+                          gastoMes: Long, alTocar: (() -> Unit)?) {
+    val base = Modifier.fillMaxWidth()
+    ElevatedCard(if (alTocar != null) base.clickable(onClick = alTocar) else base) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Avatar(nombre, color, 48.dp)
             Column(Modifier.weight(1f).padding(start = 16.dp)) {
                 Text(nombre, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                if (alTocar == null) Text("Se calcula solo", style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (descripcion.isNotBlank()) Text(descripcion, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
